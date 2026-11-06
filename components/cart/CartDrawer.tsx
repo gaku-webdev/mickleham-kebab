@@ -10,11 +10,29 @@ type Props = {
 
 export default function CartDrawer({ isOpen, onClose }: Props) {
   // Get everything we need from the shared cart.
-  const { items, removeItem, updateQuantity, total } = useCart();
+  const {
+    items,
+    removeItem,
+    updateQuantity,
+    total,
+    // Order type values, now coming from CartContext.
+    orderType,
+    setOrderType,
+    tableNumber,
+    setTableNumber,
+    guestCount,
+    setGuestCount,
+  } = useCart();
 
   // If the drawer is closed, don't render anything at all.
-  // This is simpler than hiding it with CSS, and keeps the code short.
   if (!isOpen) return null;
+
+  // Work out if the customer is ready to check out.
+  // They need an order type, and if it's Dine-In, a table number too.
+  const canCheckout =
+    items.length > 0 &&
+    orderType !== null &&
+    (orderType === "Takeaway" || tableNumber.trim() !== "");
 
   return (
     <>
@@ -79,6 +97,71 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
               </div>
             </div>
           ))}
+
+          {/* Order type section. Only show it once there's something in the cart. */}
+          {items.length > 0 && (
+            <div className="pt-2">
+              <p className="font-medium mb-2">Order Type</p>
+              <div className="flex gap-2">
+                {/* "as const" tells TypeScript these are exactly the literal
+                    values "Takeaway" and "Dine-In", not just any string. */}
+                {(["Takeaway", "Dine-In"] as const).map((option) => (
+                  <button
+                    key={option}
+                    onClick={() => setOrderType(option)}
+                    className={`flex-1 py-2 rounded border ${
+                      orderType === option
+                        ? "bg-orange-600 text-white"
+                        : "bg-white"
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+
+              {/* Only show these fields if Dine-In is selected. */}
+              {orderType === "Dine-In" && (
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <label className="text-sm text-gray-600">
+                      Table Number
+                    </label>
+                    <input
+                      type="text"
+                      value={tableNumber}
+                      onChange={(e) => setTableNumber(e.target.value)}
+                      placeholder="e.g. 12"
+                      className="w-full border rounded px-2 py-1 mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-sm text-gray-600">
+                      Number of Guests
+                    </label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <button
+                        onClick={() =>
+                          setGuestCount(Math.max(1, guestCount - 1))
+                        }
+                        className="border rounded w-6 h-6 text-sm"
+                      >
+                        -
+                      </button>
+                      <span>{guestCount}</span>
+                      <button
+                        onClick={() => setGuestCount(guestCount + 1)}
+                        className="border rounded w-6 h-6 text-sm"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer with total and checkout button. Only show it if there's something to pay for. */}
@@ -88,9 +171,26 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
               <span>Total</span>
               <span>${total.toFixed(2)}</span>
             </div>
-            <button className="w-full bg-orange-600 text-white rounded py-2">
+
+            {/* The button is disabled until order type (and table number) is set. */}
+            <button
+              disabled={!canCheckout}
+              className="w-full bg-orange-600 text-white rounded py-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
+            >
               Go to Checkout
             </button>
+
+            {/* Small hint telling the customer what's missing. */}
+            {!canCheckout && orderType === null && (
+              <p className="text-xs text-gray-500 mt-2 text-center">
+                Please choose Takeaway or Dine-In.
+              </p>
+            )}
+            {!canCheckout && orderType === "Dine-In" && tableNumber.trim() === "" && (
+              <p className="text-xs text-gray-500 mt-2 text-center">
+                Please enter your table number.
+              </p>
+            )}
           </div>
         )}
       </div>

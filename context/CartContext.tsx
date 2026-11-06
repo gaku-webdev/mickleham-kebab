@@ -13,6 +13,11 @@ type CartItem = {
   quantity: number;
 };
 
+// Order type can only be one of these two values.
+// Using specific strings (instead of just "string") stops typos
+// like "takeaway" (lowercase) from being allowed by mistake.
+type OrderType = "Takeaway" | "Dine-In";
+
 // This describes everything the cart can do.
 type CartContextType = {
   items: CartItem[];
@@ -20,6 +25,14 @@ type CartContextType = {
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   total: number;
+
+  // Order type and the extra details needed for Dine-In.
+  orderType: OrderType | null; // null = not chosen yet
+  setOrderType: (type: OrderType) => void;
+  tableNumber: string;
+  setTableNumber: (value: string) => void;
+  guestCount: number;
+  setGuestCount: (value: number) => void;
 };
 
 // Create an empty "box" that will hold the cart.
@@ -31,6 +44,11 @@ const CartContext = createContext<CartContextType | null>(null);
 export function CartProvider({ children }: { children: ReactNode }) {
   // items = the list of things in the cart. Starts empty.
   const [items, setItems] = useState<CartItem[]>([]);
+
+  // Remember the order type and Dine-In details.
+  const [orderType, setOrderType] = useState<OrderType | null>(null);
+  const [tableNumber, setTableNumber] = useState("");
+  const [guestCount, setGuestCount] = useState(2);
 
   // Add an item to the cart.
   function addItem(newItem: CartItem) {
@@ -76,7 +94,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
   // Share the cart data and functions with every page inside <CartProvider>.
   return (
     <CartContext.Provider
-      value={{ items, addItem, removeItem, updateQuantity, total }}
+      value={{
+        items,
+        addItem,
+        removeItem,
+        updateQuantity,
+        total,
+        // Share the order type values too, so any page can read/change them.
+        orderType,
+        setOrderType,
+        tableNumber,
+        setTableNumber,
+        guestCount,
+        setGuestCount,
+      }}
     >
       {children}
     </CartContext.Provider>

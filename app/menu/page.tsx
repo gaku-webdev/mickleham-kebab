@@ -6,9 +6,9 @@ export const instant = false;
 export default async function MenuPage() {
   // This part still runs on the server, fetching the data.
   const { data: items, error } = await supabase
-    .from("menu_items")
-    .select("*")
-    .order("category");
+  .from("menu_items")
+  .select("*, categories(name, slug)")
+  .order("category_id");
 
   if (error) {
     return <p className="p-8 text-red-600">Could not load menu.</p>;

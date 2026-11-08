@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
@@ -149,13 +149,15 @@ export default function ReservationPage() {
         .from("reservations")
         .insert([
           {
-            full_name: fullName,
-            email: email.trim(),
-            phone: phone.trim().startsWith("+") ? phone.trim() : `+61 ${phone.trim()}`,
-            booking_date: selectedDate,
-            booking_time: selectedTime,
-            guests: finalGuests,
-            special_notes: specialRequests.trim() || null,
+            customer_name: fullName,
+            customer_email: email.trim(),
+            customer_phone: phone.trim().startsWith("+")
+              ? phone.trim()
+              : `+61 ${phone.trim()}`,
+            reservation_date: selectedDate,
+            reservation_time: selectedTime,
+            party_size: finalGuests,
+            special_requests: specialRequests.trim() || null,
             status: "pending",
           },
         ]);
@@ -269,69 +271,6 @@ export default function ReservationPage() {
 
   return (
     <div className="min-h-screen bg-[#FAF7F2] text-[#1C1917] flex flex-col font-sans">
-      {/* Top Header Navbar */}
-      <header className="w-full bg-[#FAF7F2] border-b border-[#EBE6DD] px-4 sm:px-8 py-3.5 sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-full bg-[#EA580C] flex items-center justify-center text-white shadow-xs">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                className="w-5 h-5"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M12.963 2.286a.75.75 0 0 0-1.071-.136 9.742 9.742 0 0 0-3.539 6.177 7.547 7.547 0 0 1-1.705-1.715.75.75 0 0 0-1.152-.082A9 9 0 1 0 15.68 4.534a7.46 7.46 0 0 1-2.717-2.248ZM15.75 14.25a3.75 3.75 0 1 1-7.313-1.172c.628.465 1.35.81 2.133 1a5.99 5.99 0 0 1 1.925-3.546 3.75 3.75 0 0 1 3.255 3.718Z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
-            <div className="flex flex-col leading-tight">
-              <span className="font-extrabold text-sm sm:text-base tracking-wider text-[#1C1917]">
-                MICKLEHAM
-              </span>
-              <span className="font-bold text-[9px] sm:text-[10px] tracking-widest text-[#EA580C]">
-                KEBAB &amp; GRILL
-              </span>
-            </div>
-          </Link>
-
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-gray-700">
-            <Link href="/" className="hover:text-black transition-colors">
-              Home
-            </Link>
-            <Link href="/menu" className="hover:text-black transition-colors">
-              Menu
-            </Link>
-            <Link
-              href="/reservation"
-              className="border border-gray-800 text-black px-3 py-1 rounded-md font-semibold"
-            >
-              Book Table
-            </Link>
-            <span className="text-gray-500 cursor-pointer hover:text-black transition-colors">
-              Meal Deals
-            </span>
-            <span className="text-gray-500 cursor-pointer hover:text-black transition-colors">
-              Our Story
-            </span>
-            <span className="text-gray-500 cursor-pointer hover:text-black transition-colors">
-              Find Us
-            </span>
-          </nav>
-
-          <div className="flex items-center gap-3">
-            <Link
-              href="/menu"
-              className="bg-[#C2410C] hover:bg-[#9A3412] text-white px-4 py-1.5 rounded-lg text-sm font-semibold transition-colors shadow-xs"
-            >
-              Order Online
-            </Link>
-          </div>
-        </div>
-      </header>
-
       {/* Main Reservation Section */}
       <main className="flex-1 flex flex-col items-center justify-start py-8 sm:py-12 px-4">
         <div className="w-full max-w-4xl">
@@ -475,7 +414,7 @@ export default function ReservationPage() {
                   </p>
                   <p>
                     <span className="font-semibold text-gray-700">Contact:</span>{" "}
-                    {confirmedBooking.phone} • {confirmedBooking.email}
+                    {confirmedBooking.phone} â€¢ {confirmedBooking.email}
                   </p>
                   {confirmedBooking.specialNotes && (
                     <p className="pt-1 text-gray-700 italic">
@@ -829,7 +768,7 @@ export default function ReservationPage() {
                 </label>
                 <div className="flex items-center rounded-lg border border-gray-300 focus-within:ring-2 focus-within:ring-red-500/20 focus-within:border-red-500 overflow-hidden">
                   <div className="flex items-center gap-1.5 px-3 py-2.5 bg-gray-50 border-r border-gray-300 text-xs font-semibold text-gray-700 select-none">
-                    <span>🇦🇺</span>
+                    <span>ðŸ‡¦ðŸ‡º</span>
                     <span>+61</span>
                   </div>
                   <input

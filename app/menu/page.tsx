@@ -4,23 +4,46 @@ import MenuList from "@/components/menu/MenuList";
 export const instant = false;
 
 export default async function MenuPage() {
-  // This part still runs on the server, fetching the data.
-  const { data: items, error } = await supabase
+  const { data, error } = await supabase
   .from("menu_items")
-  .select("*, categories(name, slug)")
+  .select("id, name, description, base_price, categories(name)")
   .order("category_id");
 
   if (error) {
     return <p className="p-8 text-red-600">Could not load menu.</p>;
   }
 
-  return (
-    <main className="max-w-3xl mx-auto p-8">
-      <h1 className="text-3xl font-bold mb-8">Our Menu</h1>
+  const items = (data ?? []).map((item) => {
+    const categoryRelation = item.categories as
+      | { name?: string }
+      | { name?: string }[]
+      | null;
+    const category = Array.isArray(categoryRelation)
+      ? categoryRelation[0]?.name
+      : categoryRelation?.name;
 
-      {/* Hand the data over to the client component, */}
-      {/* which handles clicks and the modal. */}
-      <MenuList items={items} />
+    return {
+      id: item.id,
+      name: item.name,
+      description: item.description ?? "",
+      price: Number(item.base_price),
+      category: category ?? "",
+    };
+  });
+
+  return (
+    <main className="min-h-screen bg-[#FAF7F2] px-4 py-8 text-[#1C1917] sm:px-8 sm:py-12">
+      <div className="mx-auto max-w-4xl">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#EA580C]">
+          Mickleham Kebab &amp; Grill
+        </p>
+        <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">Our Menu</h1>
+        <p className="mt-2 mb-8 text-sm text-gray-600">Freshly prepared, your way.</p>
+
+        <div className="rounded-2xl border border-[#EBE6DD] bg-white p-5 shadow-sm sm:p-6">
+          <MenuList items={items} />
+        </div>
+      </div>
     </main>
   );
 }

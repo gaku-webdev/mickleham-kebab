@@ -32,12 +32,18 @@ export default async function MenuPage() {
   });
 
   return (
-    <main className="max-w-3xl mx-auto p-8">
-      <h1 className="text-3xl font-bold mb-8">Our Menu</h1>
+    <main className="min-h-screen bg-[#FAF7F2] px-4 py-8 text-[#1C1917] sm:px-8 sm:py-12">
+      <div className="mx-auto max-w-4xl">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#EA580C]">
+          Mickleham Kebab &amp; Grill
+        </p>
+        <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">Our Menu</h1>
+        <p className="mt-2 mb-8 text-sm text-gray-600">Freshly prepared, your way.</p>
 
-      {/* Hand the data over to the client component, */}
-      {/* which handles clicks and the modal. */}
-      <MenuList items={items} />
+        <div className="rounded-2xl border border-[#EBE6DD] bg-white p-5 shadow-sm sm:p-6">
+          <MenuList items={items} />
+        </div>
+      </div>
     </main>
   );
 }

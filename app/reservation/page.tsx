@@ -149,13 +149,15 @@ export default function ReservationPage() {
         .from("reservations")
         .insert([
           {
-            full_name: fullName,
-            email: email.trim(),
-            phone: phone.trim().startsWith("+") ? phone.trim() : `+61 ${phone.trim()}`,
-            booking_date: selectedDate,
-            booking_time: selectedTime,
-            guests: finalGuests,
-            special_notes: specialRequests.trim() || null,
+            customer_name: fullName,
+            customer_email: email.trim(),
+            customer_phone: phone.trim().startsWith("+")
+              ? phone.trim()
+              : `+61 ${phone.trim()}`,
+            reservation_date: selectedDate,
+            reservation_time: selectedTime,
+            party_size: finalGuests,
+            special_requests: specialRequests.trim() || null,
             status: "pending",
           },
         ]);

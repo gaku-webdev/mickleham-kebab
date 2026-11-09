@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { CartProvider } from "@/context/CartContext";
+import { AuthProvider } from "@/lib/auth-context";
 import Header from "@/components/Header";
 
 const geistSans = Geist({
@@ -26,12 +27,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <CartProvider>
-          {/* Header must be INSIDE CartProvider, */}
-          {/* because it uses useCart() to show the item count. */}
-          <Header />
-          {children}
-        </CartProvider>
+        <AuthProvider>
+          <CartProvider>
+            {/* Header must be INSIDE CartProvider, */}
+            {/* because it uses useCart() to show the item count. */}
+            <Header />
+            {children}
+          </CartProvider>
+        </AuthProvider>
       </body>
     </html>
   );

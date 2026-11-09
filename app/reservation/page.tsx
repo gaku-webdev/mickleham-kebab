@@ -1,8 +1,9 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth-context";
 
 interface BookingResult {
   reference: string;
@@ -59,6 +60,7 @@ function formatTime12(timeVal: string): string {
 }
 
 export default function ReservationPage() {
+  const { user } = useAuth();
   const [todayStr, setTodayStr] = useState("");
   const [currentMinutes, setCurrentMinutes] = useState<number | null>(null);
   const [selectedDate, setSelectedDate] = useState("");
@@ -86,7 +88,7 @@ export default function ReservationPage() {
   const [rlsHelp, setRlsHelp] = useState(false);
   const [copiedRef, setCopiedRef] = useState(false);
 
-  // Initialize today's date
+  // Initialize today's date and pre-fill user info if logged in
   useEffect(() => {
     const today = new Date();
     const iso = today.toISOString().split("T")[0];
@@ -94,7 +96,21 @@ export default function ReservationPage() {
     setSelectedDate(iso);
     setCalendarMonth(new Date(today.getFullYear(), today.getMonth(), 1));
     setCurrentMinutes(today.getHours() * 60 + today.getMinutes() + 15);
-  }, []);
+
+    if (user) {
+      if (user.user_metadata?.full_name) {
+        const parts = user.user_metadata.full_name.split(" ");
+        setFirstName(parts[0] || "");
+        setLastName(parts.slice(1).join(" ") || "");
+      }
+      if (user.email) {
+        setEmail(user.email);
+      }
+      if (user.user_metadata?.phone) {
+        setPhone(user.user_metadata.phone.replace("+61", "").trim());
+      }
+    }
+  }, [user]);
 
   // Generate 5 consecutive quick date pills from today
   const quickDatePills = useMemo(() => {
@@ -144,23 +160,37 @@ export default function ReservationPage() {
       ? parseInt(customGuestsCount, 10) || 8
       : selectedGuests;
 
+    const newId =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : undefined;
+
+    const refNumber = newId
+      ? `MK-${newId.replace(/-/g, "").substring(0, 6).toUpperCase()}`
+      : `MK-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
     try {
+      const insertPayload: Record<string, unknown> = {
+        user_id: user?.id || null,
+        customer_name: fullName,
+        customer_email: email.trim(),
+        customer_phone: phone.trim().startsWith("+")
+          ? phone.trim()
+          : `+61 ${phone.trim()}`,
+        reservation_date: selectedDate,
+        reservation_time: selectedTime,
+        party_size: finalGuests,
+        special_requests: specialRequests.trim() || null,
+        status: "pending",
+      };
+
+      if (newId) {
+        insertPayload.id = newId;
+      }
+
       const { error } = await supabase
         .from("reservations")
-        .insert([
-          {
-            customer_name: fullName,
-            customer_email: email.trim(),
-            customer_phone: phone.trim().startsWith("+")
-              ? phone.trim()
-              : `+61 ${phone.trim()}`,
-            reservation_date: selectedDate,
-            reservation_time: selectedTime,
-            party_size: finalGuests,
-            special_requests: specialRequests.trim() || null,
-            status: "pending",
-          },
-        ]);
+        .insert([insertPayload]);
 
       if (error) {
         if (
@@ -171,8 +201,6 @@ export default function ReservationPage() {
         }
         setErrorMessage(error.message);
       } else {
-        const refNumber = `MK-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-
         setConfirmedBooking({
           reference: refNumber,
           fullName,
@@ -295,6 +323,58 @@ export default function ReservationPage() {
             <span>Back to Home</span>
           </Link>
 
+          {/* Header Row (Pic 3) */}
+          <div className="flex items-center justify-between mb-2.5 px-1">
+            <span className="text-xs font-black uppercase tracking-wider text-gray-900">
+              TABLE BOOKING
+            </span>
+            <Link
+              href="/reservations"
+              className="text-xs font-semibold text-[#0284C7] hover:underline flex items-center gap-1.5"
+            >
+              <span>📅</span> My Bookings
+            </Link>
+          </div>
+
+          {/* Restaurant Banner Card (Pic 3) */}
+          <div className="bg-white rounded-2xl border border-[#EBE6DD] p-5 sm:p-6 mb-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-extrabold text-[#1C1917]">
+                Mickleham Kebab &amp; Grill
+              </h1>
+              <p className="text-xs text-gray-500 mt-1 flex items-center gap-1.5">
+                <span>📍</span> 2/9-33 Errol Bvd, Mickleham, Vic
+              </p>
+              <p className="text-xs font-bold text-gray-800 mt-1 flex items-center gap-1">
+                <span className="text-amber-500 text-sm">★</span> 4.8{" "}
+                <span className="font-normal text-gray-400">(60)</span>
+              </p>
+            </div>
+
+            <div>
+              {user ? (
+                <div className="flex items-center gap-2 text-xs bg-[#FAF7F2] px-3.5 py-2 rounded-xl border border-[#EBE6DD]">
+                  <span className="text-gray-500">Signed in as</span>
+                  <span className="font-bold text-gray-900">
+                    {user.user_metadata?.full_name || user.email}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-gray-600 font-medium">
+                    Already have an account?
+                  </span>
+                  <Link
+                    href="/login"
+                    className="px-4 py-2 bg-[#C2410C] hover:bg-[#9A3412] text-white rounded-lg text-xs font-extrabold tracking-wider uppercase transition-colors shadow-xs"
+                  >
+                    SIGN IN
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Booking Confirmation View (Requirement 10.3) */}
           {confirmedBooking ? (
             <div className="bg-white rounded-2xl shadow-sm border border-[#EBE6DD] p-6 sm:p-10 max-w-xl mx-auto space-y-6">
@@ -414,7 +494,7 @@ export default function ReservationPage() {
                   </p>
                   <p>
                     <span className="font-semibold text-gray-700">Contact:</span>{" "}
-                    {confirmedBooking.phone} â€¢ {confirmedBooking.email}
+                    {confirmedBooking.phone} • {confirmedBooking.email}
                   </p>
                   {confirmedBooking.specialNotes && (
                     <p className="pt-1 text-gray-700 italic">
@@ -768,7 +848,9 @@ export default function ReservationPage() {
                 </label>
                 <div className="flex items-center rounded-lg border border-gray-300 focus-within:ring-2 focus-within:ring-red-500/20 focus-within:border-red-500 overflow-hidden">
                   <div className="flex items-center gap-1.5 px-3 py-2.5 bg-gray-50 border-r border-gray-300 text-xs font-semibold text-gray-700 select-none">
-                    <span>ðŸ‡¦ðŸ‡º</span>
+                    <span className="text-[10px] bg-[#002B7F] text-white font-black px-1.5 py-0.5 rounded-xs leading-none tracking-wider">
+                      AU
+                    </span>
                     <span>+61</span>
                   </div>
                   <input
@@ -786,9 +868,13 @@ export default function ReservationPage() {
               {/* Account Sign In Prompt */}
               <p className="text-center text-xs text-gray-500 pt-1">
                 Already have an account?{" "}
-                <span className="text-[#0284C7] font-semibold hover:underline cursor-pointer">
+                <Link
+                  href="/login"
+                  onClick={() => setIsDetailsModalOpen(false)}
+                  className="text-[#0284C7] font-bold hover:underline cursor-pointer"
+                >
                   Sign in
-                </span>
+                </Link>
               </p>
 
               {/* Confirm Booking Button */}

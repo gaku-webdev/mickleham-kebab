@@ -13,6 +13,7 @@ type MenuItem = {
   description: string;
   price: number;
   category: string;
+  imageUrl?: string;
 };
 
 // This component receives the full list of items from the page,
@@ -41,11 +42,16 @@ export default function MenuList({ items }: { items: MenuItem[] }) {
                   onClick={() => setSelectedItem(item)}
                   className="border rounded-lg p-4 flex justify-between text-left"
                 >
-                  <div>
+                  {item.imageUrl && (
+                    <img
+                      src={item.imageUrl}
+                      alt=""
+                      className="mr-4 h-16 w-20 shrink-0 rounded-lg object-cover"
+                    />
+                  )}
+                  <div className="min-w-0 flex-1">
                     <p className="font-medium">{item.name}</p>
-                    <p className="text-sm text-gray-600">
-                      {item.description}
-                    </p>
+                    <p className="text-sm text-gray-600">{item.description}</p>
                   </div>
                   <p className="font-semibold whitespace-nowrap">
                     ${item.price.toFixed(2)}

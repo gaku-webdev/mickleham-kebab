@@ -316,7 +316,7 @@ export default function OrdersPage() {
                   type="submit"
                   className="flex-1 sm:flex-none px-5 py-2.5 bg-[#C2410C] hover:bg-[#9A3412] text-white text-xs sm:text-sm font-bold rounded-xl transition-colors shadow-xs cursor-pointer"
                 >
-                  Search Database
+                  Search 
                 </button>
                 {(searched || activeFilter) && (
                   <button

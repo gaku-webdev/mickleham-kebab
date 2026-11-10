@@ -240,10 +240,10 @@ export default function AdminPage() {
             </p>
           </div>
           <Link
-            href="/"
+            href="/manage-menu"
             className="text-sm font-semibold text-[#C2410C] transition-colors hover:text-[#9A3412]"
           >
-            View customer site →
+            Customize the menu →
           </Link>
         </div>
 

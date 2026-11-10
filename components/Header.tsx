@@ -61,14 +61,12 @@ export default function Header() {
 
           {/* Nav Links */}
           <nav className="hidden lg:flex items-center gap-6 text-sm font-medium text-gray-700">
-            <Link href="/" className={navLinkClass("/")}>
-              Home
-            </Link>
+
             <Link href="/menu" className={navLinkClass("/menu")}>
               Menu
             </Link>
             <Link href="/reservation" className={navLinkClass("/reservation")}>
-              Book Table
+              Reservations
             </Link>
             <Link href="/orders" className={navLinkClass("/orders")}>
               Order History

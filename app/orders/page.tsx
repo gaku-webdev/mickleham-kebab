@@ -36,6 +36,7 @@ interface Order {
 export default function OrdersPage() {
   const { user, loading: authLoading } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersUserId, setOrdersUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -43,24 +44,30 @@ export default function OrdersPage() {
   const [searchInput, setSearchInput] = useState("");
   const [activeFilter, setActiveFilter] = useState<string>("");
   const [searched, setSearched] = useState(false);
-  const [viewMode, setViewMode] = useState<"all" | "mine">("mine");
 
   // Fetch orders from Supabase dynamically
   const fetchOrders = useCallback(
-    async (queryTerm?: string, forceAll = false) => {
-      setLoading(true);
-      setErrorMessage(null);
+    async (
+      queryTerm?: string
+    ): Promise<{ orders: Order[]; errorMessage: string | null }> => {
+      if (!user) {
+        return { orders: [], errorMessage: null };
+      }
 
       try {
+        const ownerFilter = user.email
+          ? `user_id.eq.${user.id},customer_email.eq.${user.email}`
+          : `user_id.eq.${user.id}`;
+
         let query = supabase
           .from("orders")
           .select("*, order_items(*)")
-          .order("created_at", { ascending: false });
+          .order("created_at", { ascending: false })
+          .or(ownerFilter);
 
         const term = queryTerm?.trim();
 
         if (term) {
-          // Clean term: remove leading '#' for order numbers
           const clean = term.replace(/^#/, "");
           const digits = clean.replace(/\D/g, "");
 
@@ -71,7 +78,6 @@ export default function OrdersPage() {
             `customer_phone.ilike.%${clean}%`,
           ];
 
-          // If phone digits provided, format variants (e.g. 0434 567 890 vs 0434567890)
           if (digits.length >= 8) {
             conditions.push(`customer_phone.ilike.%${digits}%`);
             if (digits.length === 10) {
@@ -81,58 +87,48 @@ export default function OrdersPage() {
           }
 
           query = query.or(conditions.join(","));
-        } else if (!forceAll && user) {
-          // Logged-in user view
-          query = query.or(
-            `user_id.eq.${user.id},customer_email.eq.${user.email}`
-          );
         }
-
         const { data, error } = await query;
 
         if (error) {
-          setErrorMessage(error.message);
-        } else {
-          setOrders(data || []);
-
-          // If logged-in user has 0 orders and didn't search, check if they'd like to see all orders
-          if ((!data || data.length === 0) && user && !term && !forceAll) {
-            // Also fetch all orders as fallback so user can see what's in database
-            const { data: allData } = await supabase
-              .from("orders")
-              .select("*, order_items(*)")
-              .order("created_at", { ascending: false })
-              .limit(5);
-
-            if (allData && allData.length > 0) {
-              setViewMode("all");
-              setOrders(allData);
-            }
-          }
+          return { orders: [], errorMessage: error.message };
         }
+
+        return { orders: data || [], errorMessage: null };
       } catch (err: unknown) {
         if (err instanceof Error) {
-          setErrorMessage(err.message);
-        } else {
-          setErrorMessage("An unexpected error occurred while loading orders.");
+          return { orders: [], errorMessage: err.message };
         }
-      } finally {
-        setLoading(false);
+        return {
+          orders: [],
+          errorMessage: "An unexpected error occurred while loading orders.",
+        };
       }
     },
     [user]
   );
 
   useEffect(() => {
-    if (!authLoading) {
-      if (user) {
-        fetchOrders(undefined, false);
-      } else {
-        // For guest visitors: automatically load recent database orders so it's not empty!
-        fetchOrders(undefined, true);
-        setViewMode("all");
-      }
+    if (authLoading || !user) {
+      return;
     }
+
+    let cancelled = false;
+    const loadOrders = async () => {
+      const result = await fetchOrders();
+      if (cancelled) {
+        return;
+      }
+      setOrders(result.orders);
+      setOrdersUserId(user.id);
+      setErrorMessage(result.errorMessage);
+      setLoading(false);
+    };
+
+    void loadOrders();
+    return () => {
+      cancelled = true;
+    };
   }, [user, authLoading, fetchOrders]);
 
   const handleSearchSubmit = async (e: React.FormEvent) => {
@@ -141,36 +137,28 @@ export default function OrdersPage() {
       handleClearSearch();
       return;
     }
+    setLoading(true);
+    setErrorMessage(null);
     setSearched(true);
     setActiveFilter(searchInput.trim());
-    await fetchOrders(searchInput.trim(), true);
+    const result = await fetchOrders(searchInput.trim());
+    setOrders(result.orders);
+    setOrdersUserId(user?.id ?? null);
+    setErrorMessage(result.errorMessage);
+    setLoading(false);
   };
 
   const handleClearSearch = async () => {
     setSearchInput("");
     setActiveFilter("");
     setSearched(false);
-    if (user && viewMode === "mine") {
-      await fetchOrders(undefined, false);
-    } else {
-      await fetchOrders(undefined, true);
-    }
-  };
-
-  const handleShowAll = async () => {
-    setSearchInput("");
-    setActiveFilter("");
-    setSearched(false);
-    setViewMode("all");
-    await fetchOrders(undefined, true);
-  };
-
-  const handleShowMine = async () => {
-    setSearchInput("");
-    setActiveFilter("");
-    setSearched(false);
-    setViewMode("mine");
-    await fetchOrders(undefined, false);
+    setLoading(true);
+    setErrorMessage(null);
+    const result = await fetchOrders();
+    setOrders(result.orders);
+    setOrdersUserId(user?.id ?? null);
+    setErrorMessage(result.errorMessage);
+    setLoading(false);
   };
 
   const getStatusBadge = (status: string) => {
@@ -223,6 +211,50 @@ export default function OrdersPage() {
     }
   };
 
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-[#FAF7F2] text-[#1C1917] flex flex-col font-sans">
+        <main className="flex-1 flex items-center justify-center p-4">
+          <p className="text-sm text-gray-500">Checking your sign-in...</p>
+        </main>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-[#FAF7F2] text-[#1C1917] flex flex-col font-sans">
+        <main className="flex-1 flex items-center justify-center p-4 sm:p-8">
+          <section className="w-full max-w-lg bg-white rounded-2xl border border-[#EBE6DD] p-8 sm:p-10 text-center shadow-xs">
+            <div className="w-14 h-14 bg-orange-50 text-[#EA580C] rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+              📦
+            </div>
+            <h1 className="text-2xl font-extrabold text-[#1C1917]">
+              Sign in to view your orders
+            </h1>
+            <div className="flex flex-col sm:flex-row justify-center gap-3">
+              <Link
+                href="/login"
+                className="px-5 py-3 bg-[#C2410C] hover:bg-[#9A3412] text-white rounded-xl text-sm font-bold transition-colors"
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/register"
+                className="px-5 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl text-sm font-bold transition-colors"
+              >
+                Create an Account
+              </Link>
+            </div>
+          </section>
+        </main>
+      </div>
+    );
+  }
+
+  const visibleOrders = ordersUserId === user.id ? orders : [];
+  const ordersLoading = loading || ordersUserId !== user.id;
+
   return (
     <div className="min-h-screen bg-[#FAF7F2] text-[#1C1917] flex flex-col font-sans">
       <main className="flex-1 max-w-5xl w-full mx-auto p-4 sm:p-8">
@@ -239,7 +271,7 @@ export default function OrdersPage() {
               Order History
             </h1>
             <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-              Track and search orders dynamically from the database.
+              View and search your orders
             </p>
           </div>
 
@@ -253,7 +285,7 @@ export default function OrdersPage() {
           </div>
         </div>
 
-        {/* Dynamic Search & Filter Bar (Always visible for both guests and members) */}
+        {/* Search is limited to the signed-in user's orders. */}
         <div className="mb-6 bg-white rounded-2xl border border-[#EBE6DD] p-4 sm:p-5 shadow-xs">
           <form onSubmit={handleSearchSubmit} className="space-y-3">
             <div className="flex flex-col sm:flex-row gap-2.5">
@@ -262,7 +294,7 @@ export default function OrdersPage() {
                   type="text"
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
-                  placeholder="Search by Customer Name, Order # (e.g. MKG-1003), Email, or Phone..."
+                  placeholder="Search your orders by order number, name, email, or phone..."
                   className="w-full pl-9 pr-4 py-2.5 text-xs sm:text-sm rounded-xl border border-gray-300 bg-[#FAF7F2] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#EA580C]/20 focus:border-[#EA580C] text-gray-900 placeholder:text-gray-400"
                 />
                 <span className="absolute left-3 top-3 text-gray-400 text-xs">
@@ -298,42 +330,7 @@ export default function OrdersPage() {
               </div>
             </div>
 
-            {/* Quick Filter / Mode Pills */}
             <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-gray-100 text-xs">
-              <div className="flex items-center gap-2">
-                {user && (
-                  <>
-                    <button
-                      type="button"
-                      onClick={handleShowMine}
-                      className={`px-3 py-1 rounded-lg font-semibold transition-colors cursor-pointer ${
-                        viewMode === "mine" && !activeFilter
-                          ? "bg-gray-900 text-white shadow-2xs"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
-                    >
-                      My Account Orders
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleShowAll}
-                      className={`px-3 py-1 rounded-lg font-semibold transition-colors cursor-pointer ${
-                        viewMode === "all" && !activeFilter
-                          ? "bg-gray-900 text-white shadow-2xs"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
-                    >
-                      All Database Orders
-                    </button>
-                  </>
-                )}
-                {!user && (
-                  <span className="text-gray-500">
-                    💡 Tip: Search by your name, email, phone, or order number.
-                  </span>
-                )}
-              </div>
-
               {activeFilter && (
                 <span className="text-gray-500 font-medium">
                   Filtering for:{" "}
@@ -354,17 +351,17 @@ export default function OrdersPage() {
         )}
 
         {/* Loading state */}
-        {loading && (
+        {ordersLoading && (
           <div className="py-16 text-center">
             <div className="inline-block animate-spin w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full mb-3" />
             <p className="text-xs text-gray-500 font-medium">
-              Searching orders in database...
+              Searching orders 
             </p>
           </div>
         )}
 
         {/* Empty orders state */}
-        {!loading && orders.length === 0 && (
+        {!ordersLoading && visibleOrders.length === 0 && (
           <div className="bg-white rounded-2xl border border-[#EBE6DD] p-10 text-center shadow-xs">
             <div className="w-14 h-14 bg-orange-50 text-[#EA580C] rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">
               📦
@@ -375,16 +372,9 @@ export default function OrdersPage() {
             <p className="text-xs sm:text-sm text-gray-500 max-w-md mx-auto mt-1 mb-6">
               {searched
                 ? `We couldn't find any orders matching "${activeFilter}". Try searching by order number (e.g. MKG-1003) or customer name.`
-                : "No orders found in the database. Place your first order online!"}
+                : "No orders are linked to your account yet. Place your first order online!"}
             </p>
             <div className="flex justify-center gap-3">
-              <button
-                type="button"
-                onClick={handleShowAll}
-                className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-xl text-xs font-semibold"
-              >
-                Show All Orders
-              </button>
               <Link
                 href="/menu"
                 className="px-5 py-2 bg-[#C2410C] hover:bg-[#9A3412] text-white rounded-xl text-xs font-bold shadow-xs transition-colors"
@@ -396,27 +386,16 @@ export default function OrdersPage() {
         )}
 
         {/* Orders list */}
-        {!loading && orders.length > 0 && (
+        {!ordersLoading && visibleOrders.length > 0 && (
           <div className="space-y-6">
             <div className="flex items-center justify-between text-xs text-gray-500 px-1">
               <span>
-                Found <strong>{orders.length}</strong>{" "}
-                {orders.length === 1 ? "order" : "orders"}
+                Found <strong>{visibleOrders.length}</strong>{" "}
+                {visibleOrders.length === 1 ? "order" : "orders"}
               </span>
-              {!user && (
-                <span>
-                  <Link
-                    href="/login"
-                    className="text-[#0284C7] hover:underline font-semibold"
-                  >
-                    Sign in
-                  </Link>{" "}
-                  to link future orders to your account
-                </span>
-              )}
             </div>
 
-            {orders.map((order) => (
+            {visibleOrders.map((order) => (
               <div
                 key={order.id}
                 className="bg-white rounded-2xl border border-[#EBE6DD] shadow-xs overflow-hidden transition-all hover:shadow-sm"

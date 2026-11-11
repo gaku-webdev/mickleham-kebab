@@ -108,95 +108,180 @@ export default function ItemCustomizeModal({ item, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg p-6 max-w-sm w-full">
-        <h2 className="text-xl font-bold mb-4">{item.name}</h2>
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-stone-950/60 p-0 backdrop-blur-sm sm:items-center sm:p-5"
+      onClick={onClose}
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="customize-item-title"
+        aria-describedby="customize-item-description"
+        className="flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="shrink-0 border-b border-stone-100 px-5 pb-5 pt-4 sm:px-7 sm:pt-6">
+          <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-stone-200 sm:hidden" />
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-orange-700">
+                {item.category}
+              </p>
+              <h2
+                id="customize-item-title"
+                className="mt-1 text-2xl font-extrabold tracking-tight text-stone-900"
+              >
+                {item.name}
+              </h2>
+              <p
+                id="customize-item-description"
+                className="mt-1 text-sm text-stone-500"
+              >
+                Make it just the way you like.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close customization"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-stone-100 text-xl text-stone-600 transition hover:bg-stone-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-orange-200"
+            >
+              ×
+            </button>
+          </div>
+          <p className="mt-4 text-lg font-bold tabular-nums text-stone-900">
+            ${item.price.toFixed(2)}
+            <span className="ml-1 text-sm font-normal text-stone-500">each</span>
+          </p>
+        </div>
 
-        {/* ---------- Size picker --------- */}
-        {/* The whole block only renders if showSize is true. */}
-        {/* If showSize is false, React skips this completely - */}
-        {/* nothing is shown, not even an empty space. */}
-        {showSize && (
-          <div className="mb-4">
-            <p className="font-medium mb-2">Size</p>
-            <div className="flex gap-2">
-              {["Regular", "Large"].map((option) => (
-                <button
-                  key={option}
-                  onClick={() => setSize(option)}
-                  className={`px-3 py-1 rounded border ${
-                    size === option ? "bg-orange-600 text-white" : "bg-white"
-                  }`}
-                >
-                  {option}
-                </button>
-              ))}
+        <div className="overflow-y-auto px-5 py-5 sm:px-7">
+          {showSize && (
+            <fieldset className="mb-6">
+              <legend className="mb-3 text-sm font-bold text-stone-900">
+                Choose your size
+              </legend>
+              <div className="grid grid-cols-2 gap-3">
+                {["Regular", "Large"].map((option) => {
+                  const isSelected = size === option;
+
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      aria-pressed={isSelected}
+                      onClick={() => setSize(option)}
+                      className={`flex min-h-14 items-center justify-between rounded-xl border px-4 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-orange-200 ${
+                        isSelected
+                          ? "border-orange-600 bg-orange-50 text-orange-800 ring-1 ring-orange-600"
+                          : "border-stone-200 text-stone-700 hover:border-orange-300"
+                      }`}
+                    >
+                      {option}
+                      <span className="text-xs font-medium text-stone-500">
+                        {option === "Large" ? "+$2.00" : "Included"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </fieldset>
+          )}
+
+          {showSauce && (
+            <div className="mb-6">
+              <label
+                htmlFor="item-sauce"
+                className="mb-3 block text-sm font-bold text-stone-900"
+              >
+                Choose your sauce
+              </label>
+              <select
+                id="item-sauce"
+                value={sauce}
+                onChange={(event) => setSauce(event.target.value)}
+                className="h-12 w-full rounded-xl border border-stone-200 bg-white px-4 text-sm text-stone-800 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
+              >
+                <option>Garlic</option>
+                <option>Chilli</option>
+                <option>BBQ</option>
+              </select>
+            </div>
+          )}
+
+          {showCheese && (
+            <label className="mb-6 flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-stone-200 p-4 transition hover:border-orange-300">
+              <span>
+                <span className="block text-sm font-semibold text-stone-900">
+                  Add extra cheese
+                </span>
+                <span className="mt-1 block text-xs text-stone-500">
+                  Make it extra cheesy
+                </span>
+              </span>
+              <span className="flex shrink-0 items-center gap-3">
+                <span className="text-sm font-semibold text-stone-700">+$1.00</span>
+                <input
+                  type="checkbox"
+                  checked={extraCheese}
+                  onChange={(event) => setExtraCheese(event.target.checked)}
+                  className="h-5 w-5 accent-orange-600"
+                />
+              </span>
+            </label>
+          )}
+
+          <div className="flex items-center justify-between border-t border-stone-100 pt-5">
+            <div>
+              <p className="text-sm font-bold text-stone-900">Quantity</p>
+              <p className="mt-0.5 text-xs text-stone-500">
+                How many would you like?
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                aria-label="Decrease quantity"
+                onClick={() => setQuantity((current) => Math.max(1, current - 1))}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-stone-200 text-lg font-semibold text-stone-700 transition hover:border-orange-300 hover:text-orange-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-orange-200"
+              >
+                −
+              </button>
+              <span className="min-w-5 text-center font-bold tabular-nums text-stone-900">
+                {quantity}
+              </span>
+              <button
+                type="button"
+                aria-label="Increase quantity"
+                onClick={() => setQuantity((current) => current + 1)}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-stone-200 text-lg font-semibold text-stone-700 transition hover:border-orange-300 hover:text-orange-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-orange-200"
+              >
+                +
+              </button>
             </div>
           </div>
-        )}
-
-        {/* ---------- Extra cheese checkbox ---------- */}
-        {/* Only shows for food categories that make sense with cheese. */}
-        {showCheese && (
-          <label className="flex items-center gap-2 mb-4">
-            <input
-              type="checkbox"
-              checked={extraCheese}
-              onChange={(e) => setExtraCheese(e.target.checked)}
-            />
-            Extra cheese (+$1)
-          </label>
-        )}
-
-        {/* ---------- Sauce dropdown -------- */}
-        {/* Drinks and desserts never reach this part of the code. */}
-        {showSauce && (
-          <div className="mb-4">
-            <p className="font-medium mb-2">Sauce</p>
-            <select
-              value={sauce}
-              onChange={(e) => setSauce(e.target.value)}
-              className="border rounded px-2 py-1 w-full"
-            >
-              <option>Garlic</option>
-              <option>Chilli</option>
-              <option>BBQ</option>
-            </select>
-          </div>
-        )}
-
-        {/* ------- Quantity ---------- */}
-        {/* This always shows, no matter what category the item is. */}
-        <div className="mb-6 flex items-center gap-3">
-          <p className="font-medium">Quantity</p>
-          <button
-            onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-            className="border rounded w-8 h-8"
-          >
-            -
-          </button>
-          <span>{quantity}</span>
-          <button
-            onClick={() => setQuantity((q) => q + 1)}
-            className="border rounded w-8 h-8"
-          >
-            +
-          </button>
         </div>
 
-        {/* -------- Buttons ---------- */}
-        <div className="flex gap-2">
-          <button onClick={onClose} className="flex-1 border rounded py-2">
-            Cancel
-          </button>
+        <div className="shrink-0 border-t border-stone-100 bg-white px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 sm:px-7">
           <button
+            type="button"
             onClick={handleAddToCart}
-            className="flex-1 bg-orange-600 text-white rounded py-2"
+            className="flex min-h-14 w-full items-center justify-between rounded-xl bg-orange-700 px-5 text-base font-bold text-white shadow-lg shadow-orange-700/20 transition hover:bg-orange-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-orange-300"
           >
-            Add to Cart - ${(calculatePrice() * quantity).toFixed(2)}
+            <span>Add to cart</span>
+            <span className="tabular-nums">
+              ${(calculatePrice() * quantity).toFixed(2)}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="mt-2 min-h-10 w-full text-sm font-semibold text-stone-500 transition hover:text-stone-800"
+          >
+            Keep browsing
           </button>
         </div>
-      </div>
+      </section>
     </div>
   );
 }

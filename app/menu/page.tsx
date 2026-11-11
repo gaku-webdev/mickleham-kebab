@@ -6,7 +6,7 @@ export const instant = false;
 export default async function MenuPage() {
   const { data, error } = await supabase
   .from("menu_items")
-  .select("id, name, description, base_price, categories(name)")
+  .select("*, categories(name)")
   .order("category_id");
 
   if (error) {
@@ -28,6 +28,7 @@ export default async function MenuPage() {
       description: item.description ?? "",
       price: Number(item.base_price),
       category: category ?? "",
+      imageUrl: String((item as { image_url?: string | null }).image_url ?? ""),
     };
   });
 

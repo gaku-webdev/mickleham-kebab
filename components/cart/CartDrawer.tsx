@@ -1,21 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import { useCart } from "@/context/CartContext";
 
-// This describes what this component needs from its parent (Header).
 type Props = {
   isOpen: boolean;
   onClose: () => void;
 };
 
 export default function CartDrawer({ isOpen, onClose }: Props) {
-  // Get everything we need from the shared cart.
   const {
     items,
     removeItem,
     updateQuantity,
     total,
-    // Order type values, now coming from CartContext.
     orderType,
     setOrderType,
     tableNumber,
@@ -24,34 +22,70 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
     setGuestCount,
   } = useCart();
 
-  // If the drawer is closed, don't render anything at all.
+  // Remember if we're waiting for Stripe to respond,
+  // so we can show a loading state and stop double-clicks.
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+
   if (!isOpen) return null;
 
-  // Work out if the customer is ready to check out.
-  // They need an order type, and if it's Dine-In, a table number too.
   const canCheckout =
     items.length > 0 &&
     orderType !== null &&
     (orderType === "Takeaway" || tableNumber.trim() !== "");
 
+  // NEW: this function runs when "Go to Checkout" is clicked.
+  async function handleCheckout() {
+    // Turn on the loading state, so the button shows "Loading..."
+    // and can't be clicked twice while we wait.
+    setIsCheckingOut(true);
+
+    try {
+      // Build the data our /api/checkout route is expecting:
+      // just id, quantity and a display name for each cart line.
+      // We do NOT send the price - the server looks that up itself.
+      const response = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: items.map((item) => ({
+            menuItemId: item.menuItemId,
+            quantity: item.quantity,
+            displayName: item.name,
+          })),
+          orderType: orderType,
+        }),
+      });
+
+      // Turn the server's response back into a normal JS object.
+      const data = await response.json();
+
+      if (data.url) {
+        // Send the browser to the Stripe checkout page.
+        // This leaves our site entirely - the customer is now on stripe.com.
+        window.location.href = data.url;
+      } else {
+        // If something went wrong on the server, let the customer know.
+        alert("Something went wrong, please try again.");
+        setIsCheckingOut(false);
+      }
+    } catch (error) {
+      // This catches network errors (e.g. no internet connection).
+      alert("Something went wrong, please try again.");
+      setIsCheckingOut(false);
+    }
+  }
+
   return (
     <>
-      {/* Dark background. Clicking it closes the drawer. */}
-      <div
-        className="fixed inset-0 bg-black/50 z-40"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
 
-      {/* The actual drawer panel, sliding in from the right. */}
       <div className="fixed top-0 right-0 h-full w-full max-w-sm bg-white z-50 flex flex-col">
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-lg font-bold">Your Cart</h2>
           <button onClick={onClose}>✕</button>
         </div>
 
-        {/* Scrollable list of cart items. */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {/* If the cart is empty, show a message instead of a blank space. */}
           {items.length === 0 && (
             <p className="text-gray-500 text-center mt-8">
               Your cart is empty.
@@ -65,8 +99,6 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
                 <p className="text-sm text-gray-600">
                   ${item.price.toFixed(2)} each
                 </p>
-
-                {/* Quantity controls for this specific cart line. */}
                 <div className="flex items-center gap-2 mt-2">
                   <button
                     onClick={() => updateQuantity(item.id, item.quantity - 1)}
@@ -83,7 +115,6 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
                   </button>
                 </div>
               </div>
-
               <div className="text-right">
                 <p className="font-semibold">
                   ${(item.price * item.quantity).toFixed(2)}
@@ -98,13 +129,10 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
             </div>
           ))}
 
-          {/* Order type section. Only show it once there's something in the cart. */}
           {items.length > 0 && (
             <div className="pt-2">
               <p className="font-medium mb-2">Order Type</p>
               <div className="flex gap-2">
-                {/* "as const" tells TypeScript these are exactly the literal
-                    values "Takeaway" and "Dine-In", not just any string. */}
                 {(["Takeaway", "Dine-In"] as const).map((option) => (
                   <button
                     key={option}
@@ -120,7 +148,6 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
                 ))}
               </div>
 
-              {/* Only show these fields if Dine-In is selected. */}
               {orderType === "Dine-In" && (
                 <div className="mt-3 space-y-3">
                   <div>
@@ -164,7 +191,6 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
           )}
         </div>
 
-        {/* Footer with total and checkout button. Only show it if there's something to pay for. */}
         {items.length > 0 && (
           <div className="border-t p-4">
             <div className="flex justify-between mb-3 font-semibold">
@@ -172,15 +198,16 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
               <span>${total.toFixed(2)}</span>
             </div>
 
-            {/* The button is disabled until order type (and table number) is set. */}
+            {/* onClick now calls handleCheckout, and the button
+                text changes to "Loading..." while we wait for Stripe. */}
             <button
-              disabled={!canCheckout}
+              disabled={!canCheckout || isCheckingOut}
+              onClick={handleCheckout}
               className="w-full bg-orange-600 text-white rounded py-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
-              Go to Checkout
+              {isCheckingOut ? "Loading..." : "Go to Checkout"}
             </button>
 
-            {/* Small hint telling the customer what's missing. */}
             {!canCheckout && orderType === null && (
               <p className="text-xs text-gray-500 mt-2 text-center">
                 Please choose Takeaway or Dine-In.

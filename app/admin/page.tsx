@@ -52,9 +52,16 @@ export default function AdminPage() {
         .eq("id", user.id)
         .single();
 
-      const roleName = Array.isArray(userRecord?.user_roles)
-        ? userRecord?.user_roles[0]?.role_name
-        : (userRecord?.user_roles as { role_name?: string } | null)?.role_name;
+      const roleRelation: unknown = userRecord?.user_roles;
+      const roleEntry = Array.isArray(roleRelation)
+        ? roleRelation[0]
+        : roleRelation;
+      const roleName =
+        typeof roleEntry === "object" &&
+        roleEntry !== null &&
+        "role_name" in roleEntry
+          ? roleEntry.role_name
+          : undefined;
 
       // role_id 2 = admin, role_id 3 = staff, from users table, and also checking user_roles table for role_name
       const hasAdminOrStaffRole =
@@ -239,12 +246,20 @@ export default function AdminPage() {
               Keep an eye on today&apos;s orders and upcoming bookings.
             </p>
           </div>
-          <Link
-            href="/manage-menu"
-            className="text-sm font-semibold text-[#C2410C] transition-colors hover:text-[#9A3412]"
-          >
-            Customize the menu →
-          </Link>
+          <div className="flex flex-wrap gap-4">
+            <Link
+              href="/manage-menu"
+              className="text-sm font-semibold text-[#C2410C] transition-colors hover:text-[#9A3412]"
+            >
+              Customize the menu →
+            </Link>
+            <Link
+              href="/manage-promos"
+              className="text-sm font-semibold text-[#C2410C] transition-colors hover:text-[#9A3412]"
+            >
+              Manage promotions →
+            </Link>
+          </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">

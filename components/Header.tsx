@@ -19,8 +19,8 @@ export default function Header() {
       href === "/" ? pathname === "/" : pathname.startsWith(href);
 
     return isActive
-      ? "border border-gray-800 text-black px-3 py-1 rounded-md font-semibold"
-      : "text-gray-700 hover:text-black transition-colors";
+      ? "font-semibold text-[#C2410C]"
+      : "text-gray-700 transition-colors hover:text-[#C2410C]";
   };
 
   const displayName =
@@ -82,16 +82,16 @@ export default function Header() {
           </Link>
 
           {/* Nav Links */}
-          <nav className="hidden lg:flex items-center gap-6 text-sm font-medium text-gray-700">
+          <nav className="hidden min-[700px]:flex shrink-0 items-center gap-3 xl:gap-6 text-xs xl:text-sm font-medium text-gray-700">
 
-            <Link href="/menu" className={navLinkClass("/menu")}>
+            <Link href="/menu" className={`${navLinkClass("/menu")} whitespace-nowrap`}>
               Menu
             </Link>
-            <Link href="/reservation" className={navLinkClass("/reservation")}>
+            <Link href="/reservation" className={`${navLinkClass("/reservation")} whitespace-nowrap`}>
               Reservations
             </Link>
-            <Link href="/orders" className={navLinkClass("/orders")}>
-              Order History
+            <Link href="/" className={`${navLinkClass("/")} whitespace-nowrap`}>
+              Store Info
             </Link>
           </nav>
 
@@ -99,9 +99,9 @@ export default function Header() {
           <div className="flex items-center gap-3">
             <Link
               href="/menu"
-              className="hidden sm:inline-block bg-[#C2410C] hover:bg-[#9A3412] text-white px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-colors shadow-xs"
+              className="hidden shrink-0 whitespace-nowrap sm:inline-block bg-[#C2410C] hover:bg-[#9A3412] text-white px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-colors shadow-xs"
             >
-              Order Online
+              Order Now
             </Link>
 
             {/* Cart Button */}
@@ -117,19 +117,10 @@ export default function Header() {
               }`}
             >
               <span aria-hidden="true" className="text-lg">🛒</span>
-              <span className="hidden text-left sm:block">
-                <span className="block text-xs font-bold leading-4">Cart</span>
-                <span className="block text-[10px] leading-3 opacity-80">
-                  {itemCount > 0
-                    ? `${itemCount} ${itemCount === 1 ? "item" : "items"} · $${total.toFixed(2)}`
-                    : "View cart"}
-                </span>
+              <span className="text-xs font-bold">Cart</span>
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[10px] font-extrabold text-[#C2410C]">
+                {itemCount}
               </span>
-              {itemCount > 0 && (
-                <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-white px-1 text-xs font-extrabold text-[#C2410C] sm:hidden">
-                  {itemCount}
-                </span>
-              )}
             </button>
 
             {/* User Account / Auth Button */}
@@ -243,13 +234,13 @@ export default function Header() {
               <div className="flex items-center gap-2">
                 <Link
                   href="/login"
-                  className="px-3 py-1.5 border border-gray-300 hover:border-gray-400 bg-white text-gray-800 rounded-lg text-xs sm:text-sm font-semibold transition-colors shadow-2xs"
+                  className="whitespace-nowrap px-3 py-1.5 border border-gray-300 hover:border-gray-400 bg-white text-gray-800 rounded-lg text-xs sm:text-sm font-semibold transition-colors shadow-2xs"
                 >
-                  Sign In
+                  My Account
                 </Link>
                 <Link
                   href="/register"
-                  className="hidden sm:inline-block px-3 py-1.5 bg-[#1C1917] hover:bg-black text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors shadow-xs"
+                  className="hidden lg:inline-block px-3 py-1.5 bg-[#1C1917] hover:bg-black text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors shadow-xs"
                 >
                   Register
                 </Link>

@@ -33,17 +33,9 @@ export default async function MenuPage() {
   });
 
   return (
-    <main className="min-h-screen bg-[#FAF7F2] px-4 pb-28 pt-8 text-[#1C1917] sm:px-8 sm:py-12 sm:pb-28">
-      <div className="mx-auto max-w-4xl">
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#EA580C]">
-          Mickleham Kebab &amp; Grill
-        </p>
-        <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">Our Menu</h1>
-        <p className="mt-2 mb-8 text-sm text-gray-600">Freshly prepared, your way.</p>
-
-        <div className="rounded-2xl border border-[#EBE6DD] bg-white p-5 shadow-sm sm:p-6">
-          <MenuList items={items} />
-        </div>
+    <main className="min-h-screen bg-[#FAF7F2] px-4 pb-24 text-[#1C1917] sm:px-8">
+      <div className="mx-auto max-w-6xl">
+        <MenuList items={items} />
       </div>
     </main>
   );

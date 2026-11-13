@@ -21,7 +21,17 @@ type PromoForm = {
   isActive: boolean;
   startsAt: string;
   expiresAt: string;
+  appliesToAll: boolean;
+  categoryIds: string[];
+  menuItemIds: string[];
+  activeDays: number[];
+  dailyStartTime: string;
+  dailyEndTime: string;
+  scheduleTimezone: string;
 };
+
+type Category = { id: string; name: string };
+type MenuItem = { id: string; name: string; category_id: string | null };
 
 const emptyForm: PromoForm = {
   title: "",
@@ -32,7 +42,34 @@ const emptyForm: PromoForm = {
   isActive: true,
   startsAt: "",
   expiresAt: "",
+  appliesToAll: false,
+  categoryIds: [],
+  menuItemIds: [],
+  activeDays: [],
+  dailyStartTime: "",
+  dailyEndTime: "",
+  scheduleTimezone: "Australia/Melbourne",
 };
+
+const daysOfWeek = [
+  { value: 0, label: "Sunday" },
+  { value: 1, label: "Monday" },
+  { value: 2, label: "Tuesday" },
+  { value: 3, label: "Wednesday" },
+  { value: 4, label: "Thursday" },
+  { value: 5, label: "Friday" },
+  { value: 6, label: "Saturday" },
+];
+
+const timeZones = [
+  "Australia/Melbourne",
+  "Australia/Sydney",
+  "Australia/Brisbane",
+  "Australia/Adelaide",
+  "Australia/Perth",
+  "Australia/Darwin",
+  "Pacific/Auckland",
+];
 
 const inputClassName =
   "mt-1.5 w-full rounded-xl border border-[#E7E1D8] bg-white px-3.5 py-3 text-sm text-[#29231F] outline-none transition focus:border-[#C2410C] focus:ring-2 focus:ring-orange-100";
@@ -75,6 +112,13 @@ function toPromoForm(promo: Promo): PromoForm {
     isActive: promo.is_active,
     startsAt: toLocalDateTime(promo.starts_at),
     expiresAt: toLocalDateTime(promo.expires_at),
+    appliesToAll: promo.applies_to_all ?? false,
+    categoryIds: promo.category_ids ?? [],
+    menuItemIds: promo.menu_item_ids ?? [],
+    activeDays: promo.active_days ?? [],
+    dailyStartTime: promo.daily_start_time?.slice(0, 5) ?? "",
+    dailyEndTime: promo.daily_end_time?.slice(0, 5) ?? "",
+    scheduleTimezone: promo.schedule_timezone || "Australia/Melbourne",
   };
 }
 
@@ -87,6 +131,8 @@ export default function ManagePromosPage() {
   const [permissionLoading, setPermissionLoading] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [promos, setPromos] = useState<Promo[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [loadError, setLoadError] = useState("");
   const [actionError, setActionError] = useState("");
   const [notice, setNotice] = useState("");
@@ -128,18 +174,48 @@ export default function ManagePromosPage() {
       }
 
       setIsAuthorized(true);
-      const { data: promoData, error: promoError } = await supabase
-        .from("promos")
-        .select(
-          "id, title, description, code, discount_type, discount_value, is_active, starts_at, expires_at"
-        )
-        .order("starts_at", { ascending: false });
+      const [
+        { data: promoData, error: promoError },
+        { data: categoryData, error: categoryError },
+        { data: menuData, error: menuError },
+      ] = await Promise.all([
+        supabase
+          .from("promos")
+          .select(
+            "id, title, description, code, discount_type, discount_value, is_active, starts_at, expires_at, applies_to_all, category_ids, menu_item_ids, active_days, daily_start_time, daily_end_time, schedule_timezone"
+          )
+          .order("starts_at", { ascending: false }),
+        supabase.from("categories").select("id, name").order("display_order"),
+        supabase
+          .from("menu_items")
+          .select("id, name, category_id")
+          .order("name"),
+      ]);
 
       if (!active) return;
-      if (promoError) {
-        setLoadError(promoError.message);
+      if (promoError || categoryError || menuError) {
+        setLoadError(
+          promoError?.message ??
+            categoryError?.message ??
+            menuError?.message ??
+            "Could not load promo management data."
+        );
       } else {
         setPromos((promoData ?? []) as Promo[]);
+        setCategories(
+          (categoryData ?? []).map((category) => ({
+            id: String(category.id),
+            name: String(category.name),
+          }))
+        );
+        setMenuItems(
+          (menuData ?? []).map((item) => ({
+            id: String(item.id),
+            name: String(item.name),
+            category_id:
+              item.category_id == null ? null : String(item.category_id),
+          }))
+        );
       }
       setPermissionLoading(false);
     }
@@ -190,6 +266,27 @@ export default function ManagePromosPage() {
       setActionError("A percentage discount cannot be greater than 100.");
       return;
     }
+    if (
+      !form.appliesToAll &&
+      form.categoryIds.length === 0 &&
+      form.menuItemIds.length === 0
+    ) {
+      setActionError("Choose at least one eligible category or menu item.");
+      return;
+    }
+
+    if (Boolean(form.dailyStartTime) !== Boolean(form.dailyEndTime)) {
+      setActionError("Set both daily schedule times, or leave both blank.");
+      return;
+    }
+    if (
+      form.dailyStartTime &&
+      form.dailyEndTime &&
+      form.dailyStartTime >= form.dailyEndTime
+    ) {
+      setActionError("The daily end time must be after the start time.");
+      return;
+    }
 
     const startsAt = toISOStringOrNull(form.startsAt);
     const expiresAt = toISOStringOrNull(form.expiresAt);
@@ -208,6 +305,13 @@ export default function ManagePromosPage() {
       is_active: form.isActive,
       starts_at: startsAt,
       expires_at: expiresAt,
+      applies_to_all: form.appliesToAll,
+      category_ids: form.appliesToAll ? [] : form.categoryIds,
+      menu_item_ids: form.appliesToAll ? [] : form.menuItemIds,
+      active_days: form.activeDays,
+      daily_start_time: form.dailyStartTime || null,
+      daily_end_time: form.dailyEndTime || null,
+      schedule_timezone: form.scheduleTimezone,
     };
 
     const result = editingId
@@ -225,7 +329,7 @@ export default function ManagePromosPage() {
     const { data, error } = await supabase
       .from("promos")
       .select(
-        "id, title, description, code, discount_type, discount_value, is_active, starts_at, expires_at"
+        "id, title, description, code, discount_type, discount_value, is_active, starts_at, expires_at, applies_to_all, category_ids, menu_item_ids, active_days, daily_start_time, daily_end_time, schedule_timezone"
       )
       .order("starts_at", { ascending: false });
 
@@ -480,6 +584,200 @@ export default function ManagePromosPage() {
                   className={inputClassName}
                 />
               </label>
+              <label className="flex items-center gap-3 rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm font-semibold text-[#413830] sm:col-span-2">
+                <input
+                  type="checkbox"
+                  checked={form.appliesToAll}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      appliesToAll: event.target.checked,
+                      categoryIds: [],
+                      menuItemIds: [],
+                    })
+                  }
+                  className="h-4 w-4 accent-[#C2410C]"
+                />
+                Apply to all menu items and categories
+              </label>
+              <fieldset
+                disabled={form.appliesToAll}
+                className={`rounded-xl border border-[#EEE9E1] p-4 sm:col-span-2 ${
+                  form.appliesToAll ? "opacity-50" : ""
+                }`}
+              >
+                <legend className="px-1 text-sm font-bold text-[#413830]">
+                  Eligible categories
+                </legend>
+                <p className="mb-3 text-xs font-normal text-gray-500">
+                  The discount applies to items in any selected category or to
+                  any individually selected item below.
+                </p>
+                {categories.length ? (
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {categories.map((category) => (
+                      <label
+                        key={category.id}
+                        className="flex items-center gap-2 text-sm font-medium"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={form.categoryIds.includes(category.id)}
+                          onChange={(event) =>
+                            setForm({
+                              ...form,
+                              categoryIds: event.target.checked
+                                ? [...form.categoryIds, category.id]
+                                : form.categoryIds.filter(
+                                    (id) => id !== category.id
+                                  ),
+                            })
+                          }
+                          className="h-4 w-4 accent-[#C2410C]"
+                        />
+                        {category.name}
+                      </label>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-amber-700">
+                    No menu categories are available.
+                  </p>
+                )}
+              </fieldset>
+              <fieldset
+                disabled={form.appliesToAll}
+                className={`rounded-xl border border-[#EEE9E1] p-4 sm:col-span-2 ${
+                  form.appliesToAll ? "opacity-50" : ""
+                }`}
+              >
+                <legend className="px-1 text-sm font-bold text-[#413830]">
+                  Eligible individual menu items
+                </legend>
+                <p className="mb-3 text-xs font-normal text-gray-500">
+                  Use this for a promotion that applies to one specific dish,
+                  such as the Family Feast Platter.
+                </p>
+                {menuItems.length ? (
+                  <div className="grid max-h-56 gap-2 overflow-y-auto sm:grid-cols-2">
+                    {menuItems.map((item) => {
+                      const categoryName =
+                        categories.find(
+                          (category) => category.id === item.category_id
+                        )?.name ?? "Uncategorized";
+                      return (
+                        <label
+                          key={item.id}
+                          className="flex items-start gap-2 text-sm font-medium"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={form.menuItemIds.includes(item.id)}
+                            onChange={(event) =>
+                              setForm({
+                                ...form,
+                                menuItemIds: event.target.checked
+                                  ? [...form.menuItemIds, item.id]
+                                  : form.menuItemIds.filter(
+                                      (id) => id !== item.id
+                                    ),
+                              })
+                            }
+                            className="mt-0.5 h-4 w-4 accent-[#C2410C]"
+                          />
+                          <span>
+                            {item.name}
+                            <span className="ml-1 text-xs font-normal text-gray-500">
+                              · {categoryName}
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-amber-700">
+                    Add a menu item before targeting an individual dish.
+                  </p>
+                )}
+              </fieldset>
+              <fieldset className="rounded-xl border border-[#EEE9E1] p-4 sm:col-span-2">
+                <legend className="px-1 text-sm font-bold text-[#413830]">
+                  Recurring schedule
+                </legend>
+                <p className="mb-3 text-xs font-normal text-gray-500">
+                  Leave every day unchecked for no weekday restriction. Leave
+                  both times blank for all day.
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                  {daysOfWeek.map((day) => (
+                    <label
+                      key={day.value}
+                      className="flex items-center gap-2 text-sm font-medium"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={form.activeDays.includes(day.value)}
+                        onChange={(event) =>
+                          setForm({
+                            ...form,
+                            activeDays: event.target.checked
+                              ? [...form.activeDays, day.value].sort()
+                              : form.activeDays.filter(
+                                  (value) => value !== day.value
+                                ),
+                          })
+                        }
+                        className="h-4 w-4 accent-[#C2410C]"
+                      />
+                      {day.label}
+                    </label>
+                  ))}
+                </div>
+                <div className="mt-4 grid gap-4 sm:grid-cols-3">
+                  <label className="text-sm font-semibold text-[#413830]">
+                    Daily start time
+                    <input
+                      type="time"
+                      value={form.dailyStartTime}
+                      onChange={(event) =>
+                        setForm({ ...form, dailyStartTime: event.target.value })
+                      }
+                      className={inputClassName}
+                    />
+                  </label>
+                  <label className="text-sm font-semibold text-[#413830]">
+                    Daily end time
+                    <input
+                      type="time"
+                      value={form.dailyEndTime}
+                      onChange={(event) =>
+                        setForm({ ...form, dailyEndTime: event.target.value })
+                      }
+                      className={inputClassName}
+                    />
+                  </label>
+                  <label className="text-sm font-semibold text-[#413830]">
+                    Time zone
+                    <select
+                      value={form.scheduleTimezone}
+                      onChange={(event) =>
+                        setForm({
+                          ...form,
+                          scheduleTimezone: event.target.value,
+                        })
+                      }
+                      className={inputClassName}
+                    >
+                      {timeZones.map((timeZone) => (
+                        <option key={timeZone} value={timeZone}>
+                          {timeZone.replaceAll("_", " ")}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </fieldset>
               <label className="flex items-center gap-3 text-sm font-semibold text-[#413830] sm:col-span-2">
                 <input
                   type="checkbox"
@@ -542,6 +840,46 @@ export default function ManagePromosPage() {
                       </p>
                       <p className="mt-1 text-sm text-gray-500">
                         {promo.description}
+                      </p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        {promo.applies_to_all
+                          ? "Applies to all menu items and categories"
+                          : `Categories: ${
+                              promo.category_ids
+                                .map(
+                                  (id) =>
+                                    categories.find(
+                                      (category) => category.id === id
+                                    )?.name ?? id
+                                )
+                                .join(", ") || "none"
+                            } · Items: ${
+                              promo.menu_item_ids
+                                .map(
+                                  (id) =>
+                                    menuItems.find((item) => item.id === id)
+                                      ?.name ?? id
+                                )
+                                .join(", ") || "none"
+                            }`}
+                      </p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        {promo.active_days.length
+                          ? promo.active_days
+                              .map(
+                                (day) =>
+                                  daysOfWeek.find(
+                                    (candidate) => candidate.value === day
+                                  )?.label
+                              )
+                              .filter(Boolean)
+                              .join(", ")
+                          : "Every day"}
+                        {promo.daily_start_time && promo.daily_end_time
+                          ? ` · ${promo.daily_start_time.slice(0, 5)}–${promo.daily_end_time.slice(0, 5)}`
+                          : " · All day"}
+                        {" · "}
+                        {promo.schedule_timezone}
                       </p>
                     </div>
                     <div className="flex gap-2 sm:ml-2">

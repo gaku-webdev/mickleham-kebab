@@ -8,6 +8,16 @@ type Props = {
   onClose: () => void;
 };
 
+type PromoQuote = {
+  code: string;
+  title: string;
+  subtotalCents: number;
+  eligibleSubtotalCents: number;
+  discountCents: number;
+  totalCents: number;
+  cartKey: string;
+};
+
 export default function CartDrawer({ isOpen, onClose }: Props) {
   const {
     items,
@@ -25,19 +35,81 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
   // Remember if we're waiting for Stripe to respond,
   // so we can show a loading state and stop double-clicks.
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [promoCode, setPromoCode] = useState("");
+  const [promoQuote, setPromoQuote] = useState<PromoQuote | null>(null);
+  const [promoError, setPromoError] = useState("");
+  const [isApplyingPromo, setIsApplyingPromo] = useState(false);
+  const [checkoutError, setCheckoutError] = useState("");
 
   if (!isOpen) return null;
 
+  const cartKey = JSON.stringify(
+    items.map((item) => [item.id, item.menuItemId, item.name, item.quantity])
+  );
+  const quoteIsCurrent = promoQuote?.cartKey === cartKey;
+  const displayedTotal = quoteIsCurrent
+    ? promoQuote.totalCents / 100
+    : total;
   const canCheckout =
     items.length > 0 &&
     orderType !== null &&
     (orderType === "Takeaway" || tableNumber.trim() !== "");
 
+  async function handleApplyPromo(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPromoError("");
+    setCheckoutError("");
+    setIsApplyingPromo(true);
+
+    try {
+      const response = await fetch("/api/promos/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: promoCode,
+          items: items.map((item) => ({
+            menuItemId: item.menuItemId,
+            quantity: item.quantity,
+            displayName: item.name,
+          })),
+        }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        setPromoQuote(null);
+        setPromoError(data.error ?? "Could not apply this promo code.");
+        return;
+      }
+
+      setPromoCode(data.code);
+      setPromoQuote({ ...data, cartKey });
+    } catch {
+      setPromoQuote(null);
+      setPromoError("Could not verify the promo code. Please try again.");
+    } finally {
+      setIsApplyingPromo(false);
+    }
+  }
+
+  function removePromo() {
+    setPromoCode("");
+    setPromoQuote(null);
+    setPromoError("");
+    setCheckoutError("");
+  }
+
   // NEW: this function runs when "Go to Checkout" is clicked.
   async function handleCheckout() {
+    if (promoQuote && !quoteIsCurrent) {
+      setPromoError("Your cart changed. Re-apply the promo code before checkout.");
+      return;
+    }
+
     // Turn on the loading state, so the button shows "Loading..."
     // and can't be clicked twice while we wait.
     setIsCheckingOut(true);
+    setCheckoutError("");
 
     try {
       // Build the data our /api/checkout route is expecting:
@@ -53,24 +125,28 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
             displayName: item.name,
           })),
           orderType: orderType,
+          promoCode: quoteIsCurrent ? promoQuote.code : null,
         }),
       });
 
       // Turn the server's response back into a normal JS object.
       const data = await response.json();
 
-      if (data.url) {
+      if (response.ok && data.url) {
         // Send the browser to the Stripe checkout page.
         // This leaves our site entirely - the customer is now on stripe.com.
         window.location.href = data.url;
       } else {
-        // If something went wrong on the server, let the customer know.
-        alert("Something went wrong, please try again.");
+        setCheckoutError(data.error ?? "Could not start checkout. Please try again.");
         setIsCheckingOut(false);
       }
     } catch (error) {
       // This catches network errors (e.g. no internet connection).
-      alert("Something went wrong, please try again.");
+      setCheckoutError(
+        error instanceof Error
+          ? error.message
+          : "Could not start checkout. Please try again."
+      );
       setIsCheckingOut(false);
     }
   }
@@ -131,6 +207,63 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
 
           {items.length > 0 && (
             <div className="pt-2">
+              <form onSubmit={handleApplyPromo} className="mb-5">
+                <label
+                  htmlFor="cart-promo-code"
+                  className="mb-2 block text-sm font-medium"
+                >
+                  Promo code
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    id="cart-promo-code"
+                    value={promoCode}
+                    onChange={(event) => {
+                      setPromoCode(event.target.value);
+                      setPromoError("");
+                      setPromoQuote(null);
+                    }}
+                    placeholder="Enter code"
+                    autoComplete="off"
+                    className="min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm uppercase"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isApplyingPromo || !promoCode.trim()}
+                    className="rounded-lg border border-orange-200 px-3 py-2 text-sm font-semibold text-orange-800 disabled:opacity-50"
+                  >
+                    {isApplyingPromo ? "Checking..." : "Apply"}
+                  </button>
+                </div>
+                {promoError && (
+                  <p role="alert" className="mt-2 text-xs text-red-700">
+                    {promoError}
+                  </p>
+                )}
+                {promoQuote && quoteIsCurrent && (
+                  <div className="mt-2 flex items-center justify-between gap-2 text-xs text-green-700">
+                    <p>
+                      {promoQuote.code} applied to eligible items
+                      {promoQuote.eligibleSubtotalCents <
+                        promoQuote.subtotalCents &&
+                        ` ($${(promoQuote.eligibleSubtotalCents / 100).toFixed(2)} eligible)`}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={removePromo}
+                      className="font-semibold underline"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+                {promoQuote && !quoteIsCurrent && (
+                  <p role="status" className="mt-2 text-xs text-amber-700">
+                    Your cart changed. Re-apply this code to update the discount.
+                  </p>
+                )}
+              </form>
+
               <p className="font-medium mb-2">Order Type</p>
               <div className="flex gap-2">
                 {(["Takeaway", "Dine-In"] as const).map((option) => (
@@ -193,15 +326,34 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
 
         {items.length > 0 && (
           <div className="border-t p-4">
-            <div className="flex justify-between mb-3 font-semibold">
-              <span>Total</span>
-              <span>${total.toFixed(2)}</span>
+            <div className="space-y-2 mb-3 text-sm">
+              {quoteIsCurrent && promoQuote && (
+                <>
+                  <div className="flex justify-between text-gray-600">
+                    <span>Subtotal</span>
+                    <span>${(promoQuote.subtotalCents / 100).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between font-medium text-green-700">
+                    <span>Promo discount</span>
+                    <span>−${(promoQuote.discountCents / 100).toFixed(2)}</span>
+                  </div>
+                </>
+              )}
+              <div className="flex justify-between font-semibold">
+                <span>Total</span>
+                <span>${displayedTotal.toFixed(2)}</span>
+              </div>
             </div>
 
+            {checkoutError && (
+              <p role="alert" className="mb-3 text-center text-xs text-red-700">
+                {checkoutError}
+              </p>
+            )}
             {/* onClick now calls handleCheckout, and the button
                 text changes to "Loading..." while we wait for Stripe. */}
             <button
-              disabled={!canCheckout || isCheckingOut}
+              disabled={!canCheckout || isCheckingOut || isApplyingPromo}
               onClick={handleCheckout}
               className="w-full bg-orange-600 text-white rounded py-2 disabled:bg-gray-300 disabled:cursor-not-allowed"
             >

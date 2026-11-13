@@ -5,72 +5,134 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
 import { supabase } from "@/lib/supabase";
-
-// This describes what the browser sends us: just a list of cart item ids
-// and quantities. NOT the price - we never trust a price sent from the browser.
-type IncomingItem = {
-  menuItemId: string;
-  quantity: number;
-  // We also receive the display name (with options like "Large, extra cheese")
-  // just so Stripe can show something nice on the checkout page.
-  displayName: string;
-};
+import {
+  validatePromoForCheckout,
+  type CheckoutItemInput,
+} from "@/lib/promo-checkout";
 
 export async function POST(request: NextRequest) {
-  // Read the JSON body the browser sent us.
-  const body = await request.json();
-  const items: IncomingItem[] = body.items;
-  const orderType: string = body.orderType;
-
-  // If the cart is empty, there's nothing to check out.
-  if (!items || items.length === 0) {
-    return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  // ---------- Look up the REAL prices from Supabase ----------
-  // We never trust a price the browser sends us. Instead, we take the
-  // menuItemId for each cart line and look up today's real price.
-  const menuItemIds = items.map((item) => item.menuItemId);
-
-  const { data: menuItems, error } = await supabase
-    .from("menu_items")
-    .select("id, base_price")   // ← "price" を "base_price" に
-    .in("id", menuItemIds);
-
-
-  if (error || !menuItems) {
+  if (
+    typeof body !== "object" ||
+    body === null ||
+    !("items" in body) ||
+    !Array.isArray(body.items) ||
+    body.items.length === 0 ||
+    body.items.length > 100 ||
+    !("orderType" in body) ||
+    (body.orderType !== "Takeaway" && body.orderType !== "Dine-In")
+  ) {
     return NextResponse.json(
-      { error: "Could not verify menu prices" },
-      { status: 500 }
+      { error: "The cart or order type is invalid." },
+      { status: 400 }
     );
   }
 
-  // ---------- Build Stripe "line items" using the verified prices ----------
-  // A line item is Stripe's way of saying "this product, at this price,
-  // this many times".
-  const lineItems = items.map((item) => {
-    // Find the real price for this specific menu item.
-    const menuItem = menuItems.find((m) => m.id === item.menuItemId);
+  const items = body.items as CheckoutItemInput[];
+  if (
+    items.some(
+      (item) =>
+        !item ||
+        typeof item.menuItemId !== "string" ||
+        !item.menuItemId ||
+        !Number.isInteger(item.quantity) ||
+        item.quantity < 1 ||
+        item.quantity > 99 ||
+        typeof item.displayName !== "string" ||
+        !item.displayName.trim() ||
+        item.displayName.length > 200
+    )
+  ) {
+    return NextResponse.json(
+      { error: "The cart contains an invalid item." },
+      { status: 400 }
+    );
+  }
 
-    if (!menuItem) {
-      // This would only happen if the browser sent a fake/invalid id.
-      throw new Error(`Menu item ${item.menuItemId} not found`);
+  const orderType = body.orderType;
+  const menuItemIds = items.map((item) => item.menuItemId);
+  let lineItems: {
+    price_data: {
+      currency: "aud";
+      product_data: { name: string };
+      unit_amount: number;
+    };
+    quantity: number;
+  }[];
+  let promoMetadata: Record<string, string> = {};
+
+  const promoCode =
+    "promoCode" in body && typeof body.promoCode === "string"
+      ? body.promoCode.trim()
+      : "";
+
+  if (promoCode) {
+    const { data: validatedPromo, error: promoError } =
+      await validatePromoForCheckout(promoCode, items);
+    if (promoError || !validatedPromo) {
+      return NextResponse.json(
+        { error: promoError ?? "Could not apply this promo code." },
+        { status: 400 }
+      );
     }
 
-    return {
+    lineItems = validatedPromo.discountedItems.map((item) => ({
       price_data: {
         currency: "aud",
         product_data: {
           name: item.displayName,
         },
-        // Stripe wants the price in CENTS, not dollars.
-        // $12.50 becomes 1250.
-        unit_amount: Math.round(Number(menuItem.base_price) * 100),
-
+        unit_amount: item.unitAmountCents,
       },
       quantity: item.quantity,
+    }));
+    promoMetadata = {
+      promoCode: validatedPromo.promo.code,
+      promoDiscountCents: String(validatedPromo.discountCents),
     };
-  });
+  } else {
+    const { data: menuItems, error } = await supabase
+      .from("menu_items")
+      .select("id, base_price")
+      .in("id", menuItemIds);
+
+    if (error || !menuItems) {
+      return NextResponse.json(
+        { error: "Could not verify menu prices" },
+        { status: 500 }
+      );
+    }
+
+    const knownItems = items.flatMap((item) => {
+      const menuItem = menuItems.find(
+        (candidate) => candidate.id === item.menuItemId
+      );
+      return menuItem ? [{ item, menuItem }] : [];
+    });
+    if (knownItems.length !== items.length) {
+      return NextResponse.json(
+        { error: "A menu item in your cart is no longer available." },
+        { status: 400 }
+      );
+    }
+
+    lineItems = knownItems.map(({ item, menuItem }) => {
+      return {
+        price_data: {
+          currency: "aud" as const,
+          product_data: { name: item.displayName },
+          unit_amount: Math.round(Number(menuItem.base_price) * 100),
+        },
+        quantity: item.quantity,
+      };
+    });
+  }
 
   // ---------- Ask Stripe to create a checkout session ----------
   // This creates a secure, hosted payment page on Stripe's own website.
@@ -85,6 +147,7 @@ export async function POST(request: NextRequest) {
     // when Stripe tells us the payment succeeded.
     metadata: {
       orderType: orderType,
+      ...promoMetadata,
     },
   });
 

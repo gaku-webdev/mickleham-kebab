@@ -16,7 +16,7 @@ export default function Home() {
       const { data, error } = await supabase
         .from("promos")
         .select(
-          "id, title, description, code, discount_type, discount_value, is_active, starts_at, expires_at"
+          "id, title, description, code, discount_type, discount_value, is_active, starts_at, expires_at, applies_to_all, category_ids, menu_item_ids, active_days, daily_start_time, daily_end_time, schedule_timezone"
         )
         .eq("is_active", true)
         .order("starts_at", { ascending: true });

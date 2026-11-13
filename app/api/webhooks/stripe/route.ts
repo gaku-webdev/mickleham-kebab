@@ -3,7 +3,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseAdmin } from "@/lib/supabase-admin";
 import Stripe from "stripe";
 
 export async function POST(request: NextRequest) {
@@ -37,73 +37,124 @@ export async function POST(request: NextRequest) {
 
   // We only care about ONE type of event: a successful checkout.
   // Stripe sends many other event types we can ignore for now.
-    if (event.type === "checkout.session.completed") {
+  if (event.type === "checkout.session.completed") {
+    let supabaseAdmin;
+    try {
+      supabaseAdmin = getSupabaseAdmin();
+    } catch (error) {
+      console.error("Could not initialize Supabase admin client:", error);
+      return NextResponse.json(
+        { error: "Server database configuration is incomplete." },
+        { status: 500 }
+      );
+    }
+
     const session = event.data.object as Stripe.Checkout.Session;
 
     const lineItems = await stripe.checkout.sessions.listLineItems(
       session.id
     );
+    const existingOrder = await supabaseAdmin
+      .from("orders")
+      .select("id")
+      .eq("stripe_session_id", session.id)
+      .maybeSingle();
 
-    // Build a simple list of items as plain text, since there's no
-    // dedicated order_items table being used here yet.
-    const itemsSummary = lineItems.data
-      .map((item) => `${item.quantity}x ${item.description}`)
-      .join(", ");
+    if (existingOrder.error) {
+      console.error("Failed to check for an existing order:", existingOrder.error);
+      return NextResponse.json(
+        { error: "Could not check the saved order." },
+        { status: 500 }
+      );
+    }
 
     const orderNumber = `MKG-${Math.floor(1000 + Math.random() * 9000)}`;
     const orderDetails = [
-      itemsSummary,
-      session.metadata?.pickupTime
-        ? `Pickup: ${session.metadata.pickupTime}`
-        : "",
-      session.metadata?.tableNumber
-        ? `Table: ${session.metadata.tableNumber}`
-        : "",
-      session.metadata?.guestCount
-        ? `Guests: ${session.metadata.guestCount}`
-        : "",
-      session.metadata?.promoCode
-        ? `Promo: ${session.metadata.promoCode} (-$${(
-            Number(session.metadata.promoDiscountCents ?? 0) / 100
-          ).toFixed(2)})`
-        : "",
+      session.metadata?.customerNote ?? "",
     ]
       .filter(Boolean)
       .join(" · ");
 
-    // These column names now match the ACTUAL orders table structure
-    // (the one Ritesh set up), not the earlier simple version.
-    const { error } = await supabase.from("orders").insert({
-      order_number: orderNumber,
-      customer_name:
-        session.metadata?.customerName ??
-        session.customer_details?.name ??
-        "Guest",
-      customer_email:
-        session.customer_details?.email ??
-        session.metadata?.customerEmail ??
-        "",
-      customer_phone:
-        session.customer_details?.phone ??
-        session.metadata?.customerPhone ??
-        "",
-      order_type: session.metadata?.orderType ?? "Unknown",
-      status: "pending",
-      payment_status: "paid",
-      stripe_session_id: session.id,
-      subtotal: (session.amount_subtotal ?? 0) / 100,
-      tax_amount: 0,
-      total_amount: (session.amount_total ?? 0) / 100,
-      notes: orderDetails,
+    let orderId = existingOrder.data?.id;
+    if (!orderId) {
+      const { data: newOrder, error: orderError } = await supabaseAdmin
+        .from("orders")
+        .insert({
+          order_number: orderNumber,
+          customer_name:
+            session.metadata?.customerName ??
+            session.customer_details?.name ??
+            "Guest",
+          customer_email:
+            session.customer_details?.email ??
+            session.metadata?.customerEmail ??
+            "",
+          customer_phone:
+            session.customer_details?.phone ??
+            session.metadata?.customerPhone ??
+            "",
+          order_type: session.metadata?.orderType ?? "Unknown",
+          status: "pending",
+          payment_status: "paid",
+          stripe_session_id: session.id,
+          subtotal: Number(session.metadata?.subtotalBeforeDiscountCents ?? 0) / 100,
+          tax_amount: (session.total_details?.amount_tax ?? 0) / 100,
+          total_amount: (session.amount_total ?? 0) / 100,
+          promo_id: session.metadata?.promoId || null,
+          promo_code: session.metadata?.promoCode || null,
+          promo_discount_amount:
+            Number(session.metadata?.promoDiscountCents ?? 0) / 100,
+          pickup_time: session.metadata?.pickupTime || null,
+          table_number: session.metadata?.tableNumber || null,
+          guest_count: session.metadata?.guestCount
+            ? Number(session.metadata.guestCount)
+            : null,
+          notes: orderDetails || null,
+        })
+        .select("id")
+        .single();
+
+      if (orderError || !newOrder) {
+        console.error("Failed to save order:", orderError);
+        return NextResponse.json(
+          { error: "Could not save the order." },
+          { status: 500 }
+        );
+      }
+      orderId = newOrder.id;
+    }
+
+    const orderItemRows = lineItems.data.map((item) => {
+      const quantity = item.quantity ?? 1;
+      const amountSubtotal = item.amount_subtotal;
+      const amountTotal = item.amount_total;
+      return {
+        order_id: orderId,
+        stripe_line_item_id: item.id,
+        item_name: item.description ?? "Order item",
+        quantity,
+        unit_price: amountSubtotal / quantity / 100,
+        total_price: amountTotal / 100,
+      };
     });
 
-    if (error) {
-      console.error("Failed to save order:", error);
+    if (orderItemRows.length) {
+      const { error: itemsError } = await supabaseAdmin
+        .from("order_items")
+        .upsert(orderItemRows, {
+          onConflict: "stripe_line_item_id",
+          ignoreDuplicates: true,
+        });
+
+      if (itemsError) {
+        console.error("Failed to save order items:", itemsError);
+        return NextResponse.json(
+          { error: "Could not save order items." },
+          { status: 500 }
+        );
+      }
     }
   }
 
-  // IMPORTANT: Always return a 200 response to Stripe quickly,
-  // even if something above failed. If we don't, Stripe will think
-  // the webhook failed and will keep retrying it.
   return NextResponse.json({ received: true });
 }

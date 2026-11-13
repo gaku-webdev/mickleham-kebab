@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
+import Loader from "@/components/Loader";
 import { useCart } from "@/context/CartContext";
 
 type PromoQuote = {
@@ -450,7 +451,16 @@ export default function CheckoutPage() {
                   disabled={!promoCode.trim() || isApplyingPromo}
                   className="rounded-lg border border-[#E2D6C9] px-3 text-sm font-semibold disabled:opacity-50"
                 >
-                  {isApplyingPromo ? "..." : "Apply"}
+                  {isApplyingPromo ? (
+                    <Loader
+                      size="sm"
+                      label="Applying..."
+                      inline
+                      className="text-[#C2410C]"
+                    />
+                  ) : (
+                    "Apply"
+                  )}
                 </button>
               </div>
               {promoError && (
@@ -495,7 +505,14 @@ export default function CheckoutPage() {
               className="mt-4 w-full rounded-lg bg-[#CE421B] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#B73714] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting
-                ? "Redirecting to secure payment..."
+                ? (
+                    <Loader
+                      size="sm"
+                      label="Redirecting to secure payment..."
+                      inline
+                      className="text-white"
+                    />
+                  )
                 : `Place order · $${finalTotal.toFixed(2)}`}
             </button>
             <p className="mt-3 text-center text-[10px] leading-4 text-[#8A7B6D]">

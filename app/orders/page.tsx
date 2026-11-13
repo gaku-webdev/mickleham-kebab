@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
+import Loader from "@/components/Loader";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import { formatMelbourneDateTime } from "@/lib/date-time";
@@ -29,6 +30,12 @@ interface Order {
   subtotal: number;
   tax_amount: number;
   total_amount: number;
+  promo_id?: string | null;
+  promo_code?: string | null;
+  promo_discount_amount?: number | null;
+  pickup_time?: string | null;
+  table_number?: string | null;
+  guest_count?: number | null;
   notes?: string | null;
   created_at: string;
   order_items?: OrderItem[];
@@ -45,6 +52,28 @@ export default function OrdersPage() {
   const [searchInput, setSearchInput] = useState("");
   const [activeFilter, setActiveFilter] = useState<string>("");
   const [searched, setSearched] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const orderTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const closeDetailsRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    if (!selectedOrder) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeDetailsRef.current?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSelectedOrder(null);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+      orderTriggerRef.current?.focus();
+    };
+  }, [selectedOrder]);
 
   // Fetch orders from Supabase dynamically
   const fetchOrders = useCallback(
@@ -62,7 +91,7 @@ export default function OrdersPage() {
 
         let query = supabase
           .from("orders")
-          .select("*, order_items(*)")
+          .select("*")
           .order("created_at", { ascending: false })
           .or(ownerFilter);
 
@@ -95,7 +124,36 @@ export default function OrdersPage() {
           return { orders: [], errorMessage: error.message };
         }
 
-        return { orders: data || [], errorMessage: null };
+        const loadedOrders = data ?? [];
+        if (loadedOrders.length === 0) {
+          return { orders: [], errorMessage: null };
+        }
+
+        const { data: itemData, error: itemError } = await supabase
+          .from("order_items")
+          .select("*")
+          .in(
+            "order_id",
+            loadedOrders.map((order) => order.id)
+          );
+        if (itemError) {
+          return { orders: [], errorMessage: itemError.message };
+        }
+
+        const itemsByOrder = new Map<string, OrderItem[]>();
+        for (const item of itemData ?? []) {
+          const orderItems = itemsByOrder.get(item.order_id) ?? [];
+          orderItems.push(item as OrderItem);
+          itemsByOrder.set(item.order_id, orderItems);
+        }
+
+        return {
+          orders: loadedOrders.map((order) => ({
+            ...order,
+            order_items: itemsByOrder.get(order.id) ?? [],
+          })) as Order[],
+          errorMessage: null,
+        };
       } catch (err: unknown) {
         if (err instanceof Error) {
           return { orders: [], errorMessage: err.message };
@@ -200,7 +258,7 @@ export default function OrdersPage() {
     return (
       <div className="min-h-screen bg-[#FAF7F2] text-[#1C1917] flex flex-col font-sans">
         <main className="flex-1 flex items-center justify-center p-4">
-          <p className="text-sm text-gray-500">Checking your sign-in...</p>
+          <Loader label="Checking your sign-in..." />
         </main>
       </div>
     );
@@ -299,9 +357,19 @@ export default function OrdersPage() {
               <div className="flex gap-2">
                 <button
                   type="submit"
-                  className="flex-1 sm:flex-none px-5 py-2.5 bg-[#C2410C] hover:bg-[#9A3412] text-white text-xs sm:text-sm font-bold rounded-xl transition-colors shadow-xs cursor-pointer"
+                  disabled={loading}
+                  className="flex-1 sm:flex-none px-5 py-2.5 bg-[#C2410C] hover:bg-[#9A3412] text-white text-xs sm:text-sm font-bold rounded-xl transition-colors shadow-xs cursor-pointer disabled:cursor-wait disabled:opacity-70"
                 >
-                  Search 
+                  {loading ? (
+                    <Loader
+                      size="sm"
+                      label="Searching..."
+                      inline
+                      className="text-white"
+                    />
+                  ) : (
+                    "Search"
+                  )}
                 </button>
                 {(searched || activeFilter) && (
                   <button
@@ -338,10 +406,7 @@ export default function OrdersPage() {
         {/* Loading state */}
         {ordersLoading && (
           <div className="py-16 text-center">
-            <div className="inline-block animate-spin w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full mb-3" />
-            <p className="text-xs text-gray-500 font-medium">
-              Searching orders 
-            </p>
+            <Loader label="Searching orders..." />
           </div>
         )}
 
@@ -381,12 +446,23 @@ export default function OrdersPage() {
             </div>
 
             {visibleOrders.map((order) => (
-              <div
+              <button
+                type="button"
                 key={order.id}
-                className="bg-white rounded-2xl border border-[#EBE6DD] shadow-xs overflow-hidden transition-all hover:shadow-sm"
+                ref={(element) => {
+                  if (selectedOrder?.id === order.id) {
+                    orderTriggerRef.current = element;
+                  }
+                }}
+                onClick={(event) => {
+                  orderTriggerRef.current = event.currentTarget;
+                  setSelectedOrder(order);
+                }}
+                aria-haspopup="dialog"
+                aria-label={`View details for order ${order.order_number}`}
+                className="block w-full overflow-hidden rounded-2xl border border-[#EBE6DD] bg-white text-left shadow-xs transition-all hover:shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C2410C]"
               >
-                {/* Order Header */}
-                <div className="bg-[#FAF7F2] border-b border-[#EBE6DD] px-5 py-4 flex flex-wrap items-center justify-between gap-3">
+                <span className="flex flex-wrap items-center justify-between gap-3 border-b border-[#EBE6DD] bg-[#FAF7F2] px-5 py-4">
                   <div className="flex items-center gap-3">
                     <span className="font-mono text-sm sm:text-base font-extrabold text-[#1C1917]">
                       {order.order_number}
@@ -396,96 +472,209 @@ export default function OrdersPage() {
                       {order.order_type}
                     </span>
                   </div>
-
-                  <div className="text-right">
-                    <p className="text-xs text-gray-500 font-medium">
-                      {formatMelbourneDateTime(order.created_at)}
-                    </p>
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <p className="text-sm font-extrabold text-[#C2410C]">
+                        ${Number(order.total_amount).toFixed(2)}
+                      </p>
+                      <p className="text-xs text-gray-500 font-medium">
+                        {formatMelbourneDateTime(order.created_at)}
+                      </p>
+                    </div>
+                    <span className="text-xs font-semibold text-[#C2410C]">
+                      View details <span aria-hidden="true">→</span>
+                    </span>
                   </div>
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {selectedOrder && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6">
+            <button
+              type="button"
+              aria-label="Close order details"
+              onClick={() => setSelectedOrder(null)}
+              className="absolute inset-0 bg-stone-950/50 backdrop-blur-[1px]"
+            />
+            <section
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="order-details-title"
+              className="relative z-10 flex max-h-[90dvh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[#EBE6DD] bg-white text-[#1C1917] shadow-2xl"
+            >
+              <header className="flex min-h-16 items-center justify-between border-b border-[#EBE6DD] px-5 py-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[#C2410C]">
+                    Order details
+                  </p>
+                  <h2
+                    id="order-details-title"
+                    className="mt-1 text-lg font-extrabold"
+                  >
+                    {selectedOrder.order_number}
+                  </h2>
+                </div>
+                <button
+                  ref={closeDetailsRef}
+                  type="button"
+                  onClick={() => setSelectedOrder(null)}
+                  aria-label="Close order details"
+                  className="flex h-9 w-9 items-center justify-center rounded-full text-xl text-stone-500 transition hover:bg-stone-100 hover:text-stone-900 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-orange-100"
+                >
+                  ✕
+                </button>
+              </header>
+
+              <div className="flex-1 space-y-6 overflow-y-auto p-5 sm:p-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {getStatusBadge(selectedOrder.status)}
+                    <span className="rounded bg-gray-100 px-2 py-0.5 text-[11px] font-medium capitalize text-gray-700">
+                      {selectedOrder.order_type}
+                    </span>
+                    <span className="rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-800">
+                      {selectedOrder.payment_status}
+                    </span>
+                  </div>
+                  <p className="text-xs font-medium text-gray-500">
+                    {formatMelbourneDateTime(selectedOrder.created_at)}
+                  </p>
                 </div>
 
-                {/* Order Body */}
-                <div className="p-5 sm:p-6 space-y-4">
-                  {/* Items Table */}
-                  <div>
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
-                      Items Ordered
-                    </h4>
-                    <div className="divide-y divide-gray-100">
-                      {order.order_items && order.order_items.length > 0 ? (
-                        order.order_items.map((item) => (
-                          <div
-                            key={item.id}
-                            className="py-2.5 flex items-start justify-between text-xs sm:text-sm"
-                          >
-                            <div className="pr-4">
-                              <p className="font-semibold text-gray-900">
-                                <span className="font-bold text-[#EA580C] mr-2">
-                                  {item.quantity}x
-                                </span>
-                                {item.item_name}
+                <section aria-labelledby="order-items-title">
+                  <h3
+                    id="order-items-title"
+                    className="text-xs font-bold uppercase tracking-wider text-gray-500"
+                  >
+                    Items ordered
+                  </h3>
+                  <div className="mt-2 divide-y divide-[#EBE6DD] rounded-xl border border-[#EBE6DD] px-4">
+                    {selectedOrder.order_items?.length ? (
+                      selectedOrder.order_items.map((item) => (
+                        <article
+                          key={item.id}
+                          className="flex items-start justify-between gap-4 py-3 text-sm"
+                        >
+                          <div className="min-w-0">
+                            <p className="font-semibold text-gray-900">
+                              <span className="mr-2 font-bold text-[#EA580C]">
+                                {item.quantity}×
+                              </span>
+                              {item.item_name}
+                            </p>
+                            <p className="mt-1 text-xs text-gray-500">
+                              ${Number(item.unit_price).toFixed(2)} each
+                            </p>
+                            {item.special_instructions && (
+                              <p className="mt-1 text-xs italic text-gray-500">
+                                Note: {item.special_instructions}
                               </p>
-                              {item.special_instructions && (
-                                <p className="text-[11px] text-gray-500 italic mt-0.5">
-                                  Note: {item.special_instructions}
-                                </p>
-                              )}
-                            </div>
-                            <span className="font-semibold text-gray-800 whitespace-nowrap">
-                              ${Number(item.total_price).toFixed(2)}
-                            </span>
+                            )}
                           </div>
-                        ))
-                      ) : (
-                        <p className="text-xs text-gray-500 py-2">
-                          Order items details logged in database.
-                        </p>
-                      )}
-                    </div>
+                          <p className="shrink-0 font-semibold tabular-nums">
+                            ${Number(item.total_price).toFixed(2)}
+                          </p>
+                        </article>
+                      ))
+                    ) : (
+                      <p className="py-4 text-sm text-gray-500">
+                        Itemized details are unavailable for this order.
+                      </p>
+                    )}
                   </div>
+                </section>
 
-                  {/* Customer & Pricing Summary Footer */}
-                  <div className="border-t border-gray-100 pt-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <div className="text-xs text-gray-600 space-y-0.5">
-                      <p>
-                        <strong className="text-gray-800 font-semibold">
-                          Customer:
-                        </strong>{" "}
-                        {order.customer_name} ({order.customer_phone})
+                <section
+                  aria-labelledby="order-customer-title"
+                  className="grid gap-4 rounded-xl bg-[#FAF7F2] p-4 sm:grid-cols-2"
+                >
+                  <div>
+                    <h3
+                      id="order-customer-title"
+                      className="text-xs font-bold uppercase tracking-wider text-gray-500"
+                    >
+                      Customer
+                    </h3>
+                    <p className="mt-2 text-sm font-semibold">
+                      {selectedOrder.customer_name}
+                    </p>
+                    <p className="mt-1 text-sm text-gray-600">
+                      {selectedOrder.customer_email}
+                    </p>
+                    {selectedOrder.customer_phone && (
+                      <p className="mt-1 text-sm text-gray-600">
+                        {selectedOrder.customer_phone}
                       </p>
-                      <p>
-                        <strong className="text-gray-800 font-semibold">
-                          Email:
-                        </strong>{" "}
-                        {order.customer_email}
-                      </p>
-                      {order.notes && (
-                        <p className="italic text-gray-500">
-                          &ldquo;{order.notes}&rdquo;
+                    )}
+                  </div>
+                  {(selectedOrder.pickup_time ||
+                    selectedOrder.table_number) && (
+                    <div>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-gray-500">
+                        Fulfilment
+                      </h3>
+                      {selectedOrder.pickup_time && (
+                        <p className="mt-2 text-sm">
+                          Pickup: {selectedOrder.pickup_time}
+                        </p>
+                      )}
+                      {selectedOrder.table_number && (
+                        <p className="mt-2 text-sm">
+                          Table: {selectedOrder.table_number}
+                          {selectedOrder.guest_count
+                            ? ` · ${selectedOrder.guest_count} guests`
+                            : ""}
                         </p>
                       )}
                     </div>
+                  )}
+                  {selectedOrder.notes && (
+                    <p className="text-sm italic text-gray-600 sm:col-span-2">
+                      {selectedOrder.notes}
+                    </p>
+                  )}
+                </section>
 
-                    <div className="text-right sm:self-end">
-                      <div className="text-xs text-gray-500 space-y-0.5">
-                        <p>
-                          Subtotal: ${Number(order.subtotal || 0).toFixed(2)}
-                        </p>
-                        <p>
-                          GST: ${Number(order.tax_amount || 0).toFixed(2)}
-                        </p>
-                      </div>
-                      <p className="text-base sm:text-lg font-extrabold text-[#C2410C] mt-1">
-                        Total: ${Number(order.total_amount).toFixed(2)}
-                      </p>
-                      <span className="inline-block mt-0.5 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800">
-                        {order.payment_status}
+                <section
+                  aria-label="Order total"
+                  className="space-y-2 border-t border-[#EBE6DD] pt-4 text-sm"
+                >
+                  <div className="flex justify-between text-gray-600">
+                    <span>Subtotal</span>
+                    <span>${Number(selectedOrder.subtotal || 0).toFixed(2)}</span>
+                  </div>
+                  {(selectedOrder.promo_code ||
+                    Number(selectedOrder.promo_discount_amount ?? 0) > 0) && (
+                    <div className="flex justify-between text-emerald-700">
+                      <span>
+                        Promotion
+                        {selectedOrder.promo_code
+                          ? ` (${selectedOrder.promo_code})`
+                          : ""}
+                      </span>
+                      <span>
+                        -${Number(
+                          selectedOrder.promo_discount_amount ?? 0
+                        ).toFixed(2)}
                       </span>
                     </div>
+                  )}
+                  <div className="flex justify-between text-gray-600">
+                    <span>GST</span>
+                    <span>${Number(selectedOrder.tax_amount || 0).toFixed(2)}</span>
                   </div>
-                </div>
+                  <div className="flex justify-between border-t border-[#EBE6DD] pt-3 text-lg font-extrabold">
+                    <span>Total</span>
+                    <span className="text-[#C2410C]">
+                      ${Number(selectedOrder.total_amount).toFixed(2)}
+                    </span>
+                  </div>
+                </section>
               </div>
-            ))}
+            </section>
           </div>
         )}
       </main>

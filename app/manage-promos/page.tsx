@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import Link from "next/link";
+import Loader from "@/components/Loader";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -375,9 +376,7 @@ export default function ManagePromosPage() {
   if (authLoading || permissionLoading) {
     return (
       <main className="flex min-h-[70vh] items-center justify-center bg-[#FAF7F2] px-4 text-[#1C1917]">
-        <p className="rounded-2xl border border-[#EBE6DD] bg-white px-6 py-5 text-sm font-semibold text-gray-600 shadow-sm">
-          Checking permissions...
-        </p>
+        <Loader label="Checking permissions..." />
       </main>
     );
   }
@@ -802,7 +801,18 @@ export default function ManagePromosPage() {
                 disabled={saving}
                 className="rounded-xl bg-[#C2410C] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#9A3412] disabled:cursor-wait disabled:opacity-60"
               >
-                {saving ? "Saving..." : editingId ? "Save changes" : "Add promotion"}
+                {saving ? (
+                  <Loader
+                    size="sm"
+                    label="Saving..."
+                    inline
+                    className="text-white"
+                  />
+                ) : editingId ? (
+                  "Save changes"
+                ) : (
+                  "Add promotion"
+                )}
               </button>
             </div>
           </form>
@@ -894,7 +904,16 @@ export default function ManagePromosPage() {
                         disabled={deletingId === promo.id}
                         className="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
                       >
-                        {deletingId === promo.id ? "Deleting..." : "Delete"}
+                        {deletingId === promo.id ? (
+                          <Loader
+                            size="sm"
+                            label="Deleting..."
+                            inline
+                            className="text-white"
+                          />
+                        ) : (
+                          "Delete"
+                        )}
                       </button>
                     </div>
                   </article>

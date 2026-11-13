@@ -22,12 +22,18 @@ This project uses [`next/font`](https://nextjs.org/docs/app/building-your-applic
 
 ### Supabase setup
 
-Create `.env.local` in the project root and add the Supabase project URL and publishable key:
+Create `.env.local` in the project root and add the Supabase project URL and keys:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+SUPABASE_SERVICE_ROLE_KEY=your-server-only-service-role-key
 ```
+
+Keep `SUPABASE_SERVICE_ROLE_KEY` secret and never prefix it with `NEXT_PUBLIC_`.
+The Stripe webhook uses it to save paid orders and their immutable item-price
+snapshots. Apply the SQL files in `supabase/migrations/` to your Supabase project
+before deploying these changes.
 
 Restart the development server after changing environment variables.
 

@@ -122,6 +122,7 @@ export async function POST(request: NextRequest) {
     quantity: number;
   }[];
   let promoMetadata: Record<string, string> = {};
+  let subtotalBeforeDiscountCents = 0;
 
   const promoCode =
     "promoCode" in body && typeof body.promoCode === "string"
@@ -148,7 +149,13 @@ export async function POST(request: NextRequest) {
       },
       quantity: item.quantity,
     }));
+    subtotalBeforeDiscountCents = validatedPromo.cartItems.reduce(
+      (subtotal, item) =>
+        subtotal + item.unitAmountCents * item.quantity,
+      0
+    );
     promoMetadata = {
+      promoId: validatedPromo.promo.id,
       promoCode: validatedPromo.promo.code,
       promoDiscountCents: String(validatedPromo.discountCents),
     };
@@ -179,11 +186,13 @@ export async function POST(request: NextRequest) {
     }
 
     lineItems = knownItems.map(({ item, menuItem }) => {
+      const unitAmountCents = Math.round(Number(menuItem.base_price) * 100);
+      subtotalBeforeDiscountCents += unitAmountCents * item.quantity;
       return {
         price_data: {
           currency: "aud" as const,
           product_data: { name: item.displayName },
-          unit_amount: Math.round(Number(menuItem.base_price) * 100),
+          unit_amount: unitAmountCents,
         },
         quantity: item.quantity,
       };
@@ -208,6 +217,7 @@ export async function POST(request: NextRequest) {
       customerName,
       customerPhone,
       customerEmail,
+      subtotalBeforeDiscountCents: String(subtotalBeforeDiscountCents),
       pickupTime,
       tableNumber,
       guestCount: guestCount ? String(guestCount) : "",

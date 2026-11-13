@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import Loader from "@/components/Loader";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -470,8 +471,7 @@ export default function ReservationsManagePage() {
         {/* Loading state */}
         {loading && (
           <div className="py-16 text-center">
-            <div className="inline-block animate-spin w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full mb-3" />
-            <p className="text-xs text-gray-500 font-medium">Looking up reservations...</p>
+            <Loader label="Looking up reservations..." />
           </div>
         )}
 
@@ -840,7 +840,16 @@ export default function ReservationsManagePage() {
                   disabled={isUpdating}
                   className="flex-1 py-2.5 bg-[#C2410C] hover:bg-[#9A3412] text-white font-bold text-xs sm:text-sm rounded-xl transition-colors shadow-xs cursor-pointer disabled:opacity-60"
                 >
-                  {isUpdating ? "Saving..." : "Save Changes"}
+                  {isUpdating ? (
+                    <Loader
+                      size="sm"
+                      label="Saving..."
+                      inline
+                      className="text-white"
+                    />
+                  ) : (
+                    "Save Changes"
+                  )}
                 </button>
               </div>
             </form>

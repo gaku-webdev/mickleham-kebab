@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
+import Loader from "@/components/Loader";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 
@@ -446,9 +447,7 @@ export default function ManageMenuPage() {
   if (authLoading || permissionLoading) {
     return (
       <main className="flex min-h-[70vh] items-center justify-center bg-[#FAF7F2] px-4 text-[#1C1917]">
-        <p className="rounded-2xl border border-[#EBE6DD] bg-white px-6 py-5 text-sm font-semibold text-gray-600 shadow-sm">
-          Checking permissions...
-        </p>
+        <Loader label="Checking permissions..." />
       </main>
     );
   }
@@ -699,7 +698,14 @@ export default function ManageMenuPage() {
                 className="rounded-xl bg-[#C2410C] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#9A3412] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {saving
-                  ? "Saving..."
+                  ? (
+                      <Loader
+                        size="sm"
+                        label="Saving..."
+                        inline
+                        className="text-white"
+                      />
+                    )
                   : editingId
                   ? "Save changes"
                   : "Add item"}
@@ -774,9 +780,9 @@ export default function ManageMenuPage() {
                       {isExpanded && (
                         <div className="divide-y divide-[#EEE9E1] px-4">
                           {loading ? (
-                            <p className="py-6 text-center text-sm text-gray-500">
-                              Loading menu items...
-                            </p>
+                            <div className="py-6">
+                              <Loader size="sm" label="Loading menu items..." />
+                            </div>
                           ) : categoryItems.length ? (
                             categoryItems.map((item) => (
                               <article
@@ -823,7 +829,14 @@ export default function ManageMenuPage() {
                                     className="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
                                   >
                                     {deletingId === item.id
-                                      ? "Removing..."
+                                      ? (
+                                          <Loader
+                                            size="sm"
+                                            label="Removing..."
+                                            inline
+                                            className="text-white"
+                                          />
+                                        )
                                       : "Remove"}
                                   </button>
                                 </div>

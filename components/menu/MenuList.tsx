@@ -20,9 +20,9 @@ const categoryGroups = [
   { label: "Burgers", matches: /burger/i },
   { label: "Grill Meals & Rice", matches: /grill|rice|biryani/i },
   { label: "Pide & HSP", matches: /pide|hsp/i },
-  { label: "Sides & Wings", matches: /side|wing|extra|bread|salad|dip|container/i },
+  { label: "Drinks and Dips", matches: /drink|beverage/i },
+  { label: "Sides & Wings", matches: /side|wing|extra|bread|salad|container/i },
   { label: "Desserts & Shakes", matches: /dessert|shake/i },
-  { label: "Drinks", matches: /drink|beverage/i },
 ];
 
 function getCategoryGroup(category: string) {

@@ -8,10 +8,9 @@ import { useAuth } from "@/lib/auth-context";
 import CartDrawer from "./cart/CartDrawer";
 
 export default function Header() {
-  const [isCartOpen, setIsCartOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const pathname = usePathname();
-  const { items } = useCart();
+  const { items, total, isCartOpen, setIsCartOpen } = useCart();
   const { user, isAdmin, signOut } = useAuth();
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -28,6 +27,29 @@ export default function Header() {
     user?.user_metadata?.full_name ||
     user?.email?.split("@")[0] ||
     "Account";
+
+  if (pathname === "/checkout") {
+    return (
+      <header className="sticky top-0 z-40 w-full border-b border-[#EBE6DD] bg-white px-4 py-3.5 sm:px-8">
+        <div className="mx-auto flex max-w-6xl items-center justify-between">
+          <Link href="/" className="flex items-center gap-2.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#C2410C] text-[10px] font-extrabold text-white">
+              MK
+            </span>
+            <span className="text-sm font-extrabold text-[#29231F]">
+              Mickleham Kebab &amp; Grill
+            </span>
+          </Link>
+          <Link
+            href="/menu"
+            className="text-xs font-semibold text-[#C2410C] hover:text-[#9A3412] sm:text-sm"
+          >
+            ← Back to menu
+          </Link>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <>
@@ -85,13 +107,26 @@ export default function Header() {
             {/* Cart Button */}
             <button
               type="button"
-              aria-label={`Open cart${itemCount > 0 ? ` with ${itemCount} items` : ""}`}
+              aria-label={`Open cart${itemCount > 0 ? ` with ${itemCount} items, $${total.toFixed(2)}` : ", empty"}`}
+              aria-expanded={isCartOpen}
               onClick={() => setIsCartOpen(true)}
-              className="relative p-2 text-lg hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"
+              className={`flex min-h-11 items-center gap-2.5 rounded-xl border px-3 transition-colors ${
+                itemCount > 0
+                  ? "border-[#C2410C] bg-[#C2410C] text-white shadow-sm hover:bg-[#9A3412]"
+                  : "border-[#E7DED4] bg-white text-[#29231F] hover:border-[#C2410C]"
+              }`}
             >
-              🛒
+              <span aria-hidden="true" className="text-lg">🛒</span>
+              <span className="hidden text-left sm:block">
+                <span className="block text-xs font-bold leading-4">Cart</span>
+                <span className="block text-[10px] leading-3 opacity-80">
+                  {itemCount > 0
+                    ? `${itemCount} ${itemCount === 1 ? "item" : "items"} · $${total.toFixed(2)}`
+                    : "View cart"}
+                </span>
+              </span>
               {itemCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-orange-600 text-white text-[11px] font-bold rounded-full w-5 h-5 flex items-center justify-center shadow-xs">
+                <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-white px-1 text-xs font-extrabold text-[#C2410C] sm:hidden">
                   {itemCount}
                 </span>
               )}

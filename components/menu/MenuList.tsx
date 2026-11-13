@@ -4,6 +4,7 @@
 // because it only fetches data - it never changes after loading.
 
 import { useState } from "react";
+import { useCart } from "@/context/CartContext";
 import ItemCustomizeModal from "./ItemCustomizeModal";
 
 type MenuItem = {
@@ -19,6 +20,11 @@ export default function MenuList({ items }: { items: MenuItem[] }) {
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
   const [activeCategory, setActiveCategory] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
+  const { items: cartItems, total, setIsCartOpen } = useCart();
+  const cartItemCount = cartItems.reduce(
+    (count, item) => count + item.quantity,
+    0
+  );
   const categories = Array.from(new Set(items.map((i) => i.category)));
   const normalizedSearch = searchTerm.trim().toLowerCase();
   const filteredItems = items.filter((item) => {
@@ -160,6 +166,37 @@ export default function MenuList({ items }: { items: MenuItem[] }) {
           item={selectedItem}
           onClose={() => setSelectedItem(null)}
         />
+      )}
+
+      {cartItemCount > 0 && (
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#E8DED2] bg-white/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgba(41,35,31,0.12)] backdrop-blur sm:bottom-5 sm:left-auto sm:right-6 sm:w-80 sm:rounded-2xl sm:border sm:p-3">
+          <button
+            type="button"
+            onClick={() => setIsCartOpen(true)}
+            className="flex min-h-12 w-full items-center justify-between gap-4 rounded-xl bg-[#C2410C] px-4 py-3 text-left text-white transition hover:bg-[#9A3412] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-orange-200"
+          >
+            <span className="flex min-w-0 items-center gap-3">
+              <span
+                aria-hidden="true"
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/15 text-base"
+              >
+                🛒
+              </span>
+              <span className="min-w-0">
+                <span className="block text-sm font-bold">
+                  View cart · {cartItemCount}{" "}
+                  {cartItemCount === 1 ? "item" : "items"}
+                </span>
+                <span className="block text-xs text-white/80">
+                  Review your order
+                </span>
+              </span>
+            </span>
+            <span className="shrink-0 text-sm font-extrabold tabular-nums">
+              ${total.toFixed(2)}
+            </span>
+          </button>
+        </div>
       )}
     </>
   );

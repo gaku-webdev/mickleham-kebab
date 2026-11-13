@@ -51,14 +51,42 @@ export async function POST(request: NextRequest) {
       .join(", ");
 
     const orderNumber = `MKG-${Math.floor(1000 + Math.random() * 9000)}`;
+    const orderDetails = [
+      itemsSummary,
+      session.metadata?.pickupTime
+        ? `Pickup: ${session.metadata.pickupTime}`
+        : "",
+      session.metadata?.tableNumber
+        ? `Table: ${session.metadata.tableNumber}`
+        : "",
+      session.metadata?.guestCount
+        ? `Guests: ${session.metadata.guestCount}`
+        : "",
+      session.metadata?.promoCode
+        ? `Promo: ${session.metadata.promoCode} (-$${(
+            Number(session.metadata.promoDiscountCents ?? 0) / 100
+          ).toFixed(2)})`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" · ");
 
     // These column names now match the ACTUAL orders table structure
     // (the one Ritesh set up), not the earlier simple version.
     const { error } = await supabase.from("orders").insert({
       order_number: orderNumber,
-      customer_name: session.customer_details?.name ?? "Guest",
-      customer_email: session.customer_details?.email ?? "",
-      customer_phone: session.customer_details?.phone ?? "",
+      customer_name:
+        session.metadata?.customerName ??
+        session.customer_details?.name ??
+        "Guest",
+      customer_email:
+        session.customer_details?.email ??
+        session.metadata?.customerEmail ??
+        "",
+      customer_phone:
+        session.customer_details?.phone ??
+        session.metadata?.customerPhone ??
+        "",
       order_type: session.metadata?.orderType ?? "Unknown",
       status: "pending",
       payment_status: "paid",
@@ -66,7 +94,7 @@ export async function POST(request: NextRequest) {
       subtotal: (session.amount_subtotal ?? 0) / 100,
       tax_amount: 0,
       total_amount: (session.amount_total ?? 0) / 100,
-      notes: itemsSummary,
+      notes: orderDetails,
     });
 
     if (error) {

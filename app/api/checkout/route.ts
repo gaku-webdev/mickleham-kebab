@@ -56,6 +56,62 @@ export async function POST(request: NextRequest) {
   }
 
   const orderType = body.orderType;
+  const customer =
+    "customer" in body &&
+    typeof body.customer === "object" &&
+    body.customer !== null
+      ? body.customer
+      : null;
+  const customerName =
+    customer && "name" in customer && typeof customer.name === "string"
+      ? customer.name.trim()
+      : "";
+  const customerPhone =
+    customer && "phone" in customer && typeof customer.phone === "string"
+      ? customer.phone.trim()
+      : "";
+  const customerEmail =
+    customer && "email" in customer && typeof customer.email === "string"
+      ? customer.email.trim()
+      : "";
+
+  if (
+    !customerName ||
+    customerName.length > 100 ||
+    !/^[0-9+()\-\s]{8,20}$/.test(customerPhone) ||
+    customerPhone.replace(/\D/g, "").length < 8 ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)
+  ) {
+    return NextResponse.json(
+      { error: "Enter a valid name, phone number, and email address." },
+      { status: 400 }
+    );
+  }
+  const pickupTime =
+    "pickupTime" in body && typeof body.pickupTime === "string"
+      ? body.pickupTime.trim()
+      : "";
+  const tableNumber =
+    "tableNumber" in body && typeof body.tableNumber === "string"
+      ? body.tableNumber.trim()
+      : "";
+  const guestCount =
+    "guestCount" in body && Number.isInteger(body.guestCount)
+      ? Number(body.guestCount)
+      : 0;
+
+  if (
+    (orderType === "Takeaway" &&
+      (!pickupTime || pickupTime.length > 80)) ||
+    (orderType === "Dine-In" &&
+      (!tableNumber || tableNumber.length > 20 || guestCount < 1 || guestCount > 30))
+  ) {
+    return NextResponse.json(
+      { error: "Enter valid pickup or dine-in details." },
+      { status: 400 }
+    );
+  }
+
   const menuItemIds = items.map((item) => item.menuItemId);
   let lineItems: {
     price_data: {
@@ -139,6 +195,8 @@ export async function POST(request: NextRequest) {
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     line_items: lineItems,
+    customer_email: customerEmail,
+    phone_number_collection: { enabled: true },
     // After payment, Stripe will send the customer back to our site.
     // {CHECKOUT_SESSION_ID} gets replaced by Stripe with the real session id.
     success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/order-confirmation?session_id={CHECKOUT_SESSION_ID}`,
@@ -147,6 +205,12 @@ export async function POST(request: NextRequest) {
     // when Stripe tells us the payment succeeded.
     metadata: {
       orderType: orderType,
+      customerName,
+      customerPhone,
+      customerEmail,
+      pickupTime,
+      tableNumber,
+      guestCount: guestCount ? String(guestCount) : "",
       ...promoMetadata,
     },
   });

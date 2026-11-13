@@ -33,7 +33,7 @@ export default async function MenuPage() {
   });
 
   return (
-    <main className="min-h-screen bg-[#FAF7F2] px-4 py-8 text-[#1C1917] sm:px-8 sm:py-12">
+    <main className="min-h-screen bg-[#FAF7F2] px-4 pb-28 pt-8 text-[#1C1917] sm:px-8 sm:py-12 sm:pb-28">
       <div className="mx-auto max-w-4xl">
         <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#EA580C]">
           Mickleham Kebab &amp; Grill

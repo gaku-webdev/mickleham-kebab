@@ -33,6 +33,10 @@ type CartContextType = {
   setTableNumber: (value: string) => void;
   guestCount: number;
   setGuestCount: (value: number) => void;
+  promoCode: string;
+  setPromoCode: (value: string) => void;
+  isCartOpen: boolean;
+  setIsCartOpen: (value: boolean) => void;
 };
 
 // Create an empty "box" that will hold the cart.
@@ -46,9 +50,11 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
 
   // Remember the order type and Dine-In details.
-  const [orderType, setOrderType] = useState<OrderType | null>(null);
+  const [orderType, setOrderType] = useState<OrderType | null>("Takeaway");
   const [tableNumber, setTableNumber] = useState("");
   const [guestCount, setGuestCount] = useState(2);
+  const [promoCode, setPromoCode] = useState("");
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   // Add an item to the cart.
   function addItem(newItem: CartItem) {
@@ -107,6 +113,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setTableNumber,
         guestCount,
         setGuestCount,
+        promoCode,
+        setPromoCode,
+        isCartOpen,
+        setIsCartOpen,
       }}
     >
       {children}

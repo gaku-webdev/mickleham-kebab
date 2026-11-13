@@ -6,6 +6,11 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import {
+  formatClockTime,
+  melbourneDateTimeInputToISOString,
+  toMelbourneDateTimeInput,
+} from "@/lib/date-time";
+import {
   formatDiscount,
   isPromoCurrentlyActive,
   type DiscountType,
@@ -93,15 +98,6 @@ function isAdminOrStaff(
   );
 }
 
-function toLocalDateTime(value: string | null) {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
-    .toISOString()
-    .slice(0, 16);
-}
-
 function toPromoForm(promo: Promo): PromoForm {
   return {
     title: promo.title,
@@ -110,8 +106,8 @@ function toPromoForm(promo: Promo): PromoForm {
     discountType: promo.discount_type,
     discountValue: String(promo.discount_value),
     isActive: promo.is_active,
-    startsAt: toLocalDateTime(promo.starts_at),
-    expiresAt: toLocalDateTime(promo.expires_at),
+    startsAt: toMelbourneDateTimeInput(promo.starts_at),
+    expiresAt: toMelbourneDateTimeInput(promo.expires_at),
     appliesToAll: promo.applies_to_all ?? false,
     categoryIds: promo.category_ids ?? [],
     menuItemIds: promo.menu_item_ids ?? [],
@@ -120,10 +116,6 @@ function toPromoForm(promo: Promo): PromoForm {
     dailyEndTime: promo.daily_end_time?.slice(0, 5) ?? "",
     scheduleTimezone: promo.schedule_timezone || "Australia/Melbourne",
   };
-}
-
-function toISOStringOrNull(value: string) {
-  return value ? new Date(value).toISOString() : null;
 }
 
 export default function ManagePromosPage() {
@@ -288,8 +280,14 @@ export default function ManagePromosPage() {
       return;
     }
 
-    const startsAt = toISOStringOrNull(form.startsAt);
-    const expiresAt = toISOStringOrNull(form.expiresAt);
+    const startsAt = melbourneDateTimeInputToISOString(form.startsAt);
+    const expiresAt = melbourneDateTimeInputToISOString(form.expiresAt);
+    if ((form.startsAt && !startsAt) || (form.expiresAt && !expiresAt)) {
+      setActionError(
+        "Enter valid Melbourne local dates and times (times skipped during daylight saving cannot be used)."
+      );
+      return;
+    }
     if (startsAt && expiresAt && startsAt >= expiresAt) {
       setActionError("The expiry date must be after the start date.");
       return;
@@ -563,7 +561,7 @@ export default function ManagePromosPage() {
                 />
               </label>
               <label className="text-sm font-semibold text-[#413830]">
-                Starts at
+                Starts at (Melbourne time)
                 <input
                   type="datetime-local"
                   value={form.startsAt}
@@ -574,7 +572,7 @@ export default function ManagePromosPage() {
                 />
               </label>
               <label className="text-sm font-semibold text-[#413830]">
-                Expires at
+                Expires at (Melbourne time)
                 <input
                   type="datetime-local"
                   value={form.expiresAt}
@@ -876,7 +874,7 @@ export default function ManagePromosPage() {
                               .join(", ")
                           : "Every day"}
                         {promo.daily_start_time && promo.daily_end_time
-                          ? ` · ${promo.daily_start_time.slice(0, 5)}–${promo.daily_end_time.slice(0, 5)}`
+                          ? ` · ${formatClockTime(promo.daily_start_time)}–${formatClockTime(promo.daily_end_time)}`
                           : " · All day"}
                         {" · "}
                         {promo.schedule_timezone}

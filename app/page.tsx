@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { formatDiscount, isPromoCurrentlyActive, type Promo } from "@/lib/promos";
+import { formatMelbourneDate } from "@/lib/date-time";
 
 export default function Home() {
   const [promos, setPromos] = useState<Promo[]>([]);
@@ -113,7 +114,7 @@ export default function Home() {
                   {promo.expires_at && (
                     <p className="mt-3 text-xs text-gray-500">
                       Offer ends{" "}
-                      {new Date(promo.expires_at).toLocaleDateString()}
+                      {formatMelbourneDate(promo.expires_at)}
                     </p>
                   )}
                 </article>

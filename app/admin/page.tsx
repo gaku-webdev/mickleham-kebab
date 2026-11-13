@@ -4,6 +4,11 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
+import {
+  formatDateOnly,
+  formatClockTime,
+  formatMelbourneDateTime,
+} from "@/lib/date-time";
 
 interface OrderRow {
   id: string;
@@ -297,7 +302,7 @@ export default function AdminPage() {
                       </p>
                       <p className="text-xs text-gray-500">
                         {order.created_at
-                          ? new Date(String(order.created_at)).toLocaleString()
+                          ? formatMelbourneDateTime(String(order.created_at))
                           : "Date unavailable"}
                       </p>
                     </div>
@@ -329,8 +334,9 @@ export default function AdminPage() {
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-gray-500">
-                      {reservation.reservation_date} at{" "}
-                      {String(reservation.reservation_time).slice(0, 5)} ·{" "}
+                      {formatDateOnly(reservation.reservation_date)} at{" "}
+                      {formatClockTime(String(reservation.reservation_time))}{" "}
+                      Melbourne time ·{" "}
                       {reservation.party_size} guests
                     </p>
                   </div>

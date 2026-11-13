@@ -4,6 +4,12 @@ import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
+import {
+  formatDateOnly,
+  formatClockTime,
+  getMelbourneDateParts,
+  toDateInputValue,
+} from "@/lib/date-time";
 
 interface BookingResult {
   reference: string;
@@ -18,15 +24,15 @@ interface BookingResult {
 
 // Evening times from 5:30 PM
 const EVENING_TIMES = [
-  { value: "17:30:00", label: "05:30 pm" },
-  { value: "18:00:00", label: "06:00 pm" },
-  { value: "18:30:00", label: "06:30 pm" },
-  { value: "19:00:00", label: "07:00 pm" },
-  { value: "19:30:00", label: "07:30 pm" },
-  { value: "20:00:00", label: "08:00 pm" },
-  { value: "20:30:00", label: "08:30 pm" },
-  { value: "21:00:00", label: "09:00 pm" },
-  { value: "21:30:00", label: "09:30 pm" },
+  { value: "17:30:00", label: "5:30 pm" },
+  { value: "18:00:00", label: "6:00 pm" },
+  { value: "18:30:00", label: "6:30 pm" },
+  { value: "19:00:00", label: "7:00 pm" },
+  { value: "19:30:00", label: "7:30 pm" },
+  { value: "20:00:00", label: "8:00 pm" },
+  { value: "20:30:00", label: "8:30 pm" },
+  { value: "21:00:00", label: "9:00 pm" },
+  { value: "21:30:00", label: "9:30 pm" },
   { value: "22:00:00", label: "10:00 pm" },
   { value: "22:30:00", label: "10:30 pm" },
 ];
@@ -34,29 +40,16 @@ const EVENING_TIMES = [
 const GUEST_OPTIONS = [1, 2, 3, 4, 5, 6, 7];
 
 function formatDisplayDate(dateStr: string): string {
-  if (!dateStr) return "";
-  try {
-    const [year, month, day] = dateStr.split("-").map(Number);
-    const d = new Date(year, month - 1, day);
-    return d.toLocaleDateString("en-AU", {
-      weekday: "long",
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  } catch {
-    return dateStr;
-  }
+  return formatDateOnly(dateStr, {
+    weekday: "long",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 function formatTime12(timeVal: string): string {
-  const [hStr, mStr] = timeVal.split(":");
-  const h = parseInt(hStr, 10);
-  const m = mStr || "00";
-  const period = h >= 12 ? "pm" : "am";
-  const displayHour = h % 12 === 0 ? 12 : h % 12;
-  const padHour = displayHour < 10 ? `0${displayHour}` : `${displayHour}`;
-  return `${padHour}:${m} ${period}`;
+  return formatClockTime(timeVal);
 }
 
 export default function ReservationPage() {
@@ -90,12 +83,12 @@ export default function ReservationPage() {
 
   // Initialize today's date and pre-fill user info if logged in
   useEffect(() => {
-    const today = new Date();
-    const iso = today.toISOString().split("T")[0];
+    const today = getMelbourneDateParts();
+    const iso = toDateInputValue(today);
     setTodayStr(iso);
     setSelectedDate(iso);
-    setCalendarMonth(new Date(today.getFullYear(), today.getMonth(), 1));
-    setCurrentMinutes(today.getHours() * 60 + today.getMinutes() + 15);
+    setCalendarMonth(new Date(Date.UTC(today.year, today.month - 1, 1)));
+    setCurrentMinutes(today.hour * 60 + today.minute + 15);
 
     if (user) {
       if (user.user_metadata?.full_name) {
@@ -118,13 +111,17 @@ export default function ReservationPage() {
     const pills = [];
     const [y, m, d] = todayStr.split("-").map(Number);
     for (let i = 0; i < 5; i++) {
-      const dateObj = new Date(y, m - 1, d + i);
-      const iso = dateObj.toISOString().split("T")[0];
-      const weekday = dateObj.toLocaleDateString("en-AU", { weekday: "short" });
+      const dateObj = new Date(Date.UTC(y, m - 1, d + i));
+      const iso = toDateInputValue({
+        year: dateObj.getUTCFullYear(),
+        month: dateObj.getUTCMonth() + 1,
+        day: dateObj.getUTCDate(),
+      });
+      const weekday = formatDateOnly(iso, { weekday: "short" });
       const dayMonth =
         i === 0
           ? "Today"
-          : dateObj.toLocaleDateString("en-AU", { day: "2-digit", month: "short" });
+          : formatDateOnly(iso, { day: "2-digit", month: "short" });
       pills.push({
         iso,
         weekday,
@@ -250,11 +247,11 @@ export default function ReservationPage() {
   // Calendar Modal Days Builder
   const calendarDays = useMemo(() => {
     if (!calendarMonth || !todayStr) return [];
-    const year = calendarMonth.getFullYear();
-    const month = calendarMonth.getMonth();
+    const year = calendarMonth.getUTCFullYear();
+    const month = calendarMonth.getUTCMonth();
 
-    const firstDayIndex = new Date(year, month, 1).getDay(); // 0 = Sun
-    const totalDaysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDayIndex = new Date(Date.UTC(year, month, 1)).getUTCDay();
+    const totalDaysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
 
     const days = [];
     for (let i = 0; i < firstDayIndex; i++) {
@@ -262,13 +259,13 @@ export default function ReservationPage() {
     }
 
     const [tY, tM, tD] = todayStr.split("-").map(Number);
-    const todayDate = new Date(tY, tM - 1, tD);
+    const todayDate = Date.UTC(tY, tM - 1, tD);
 
     for (let d = 1; d <= totalDaysInMonth; d++) {
       const monthStr = String(month + 1).padStart(2, "0");
       const dayStr = String(d).padStart(2, "0");
       const iso = `${year}-${monthStr}-${dayStr}`;
-      const thisDate = new Date(year, month, d);
+      const thisDate = Date.UTC(year, month, d);
       const isPast = thisDate < todayDate;
 
       days.push({
@@ -285,15 +282,15 @@ export default function ReservationPage() {
 
   const prevMonth = () => {
     setCalendarMonth((prev) => {
-      const current = prev || new Date();
-      return new Date(current.getFullYear(), current.getMonth() - 1, 1);
+      const current = prev || new Date(Date.UTC(2026, 10, 1));
+      return new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth() - 1, 1));
     });
   };
 
   const nextMonth = () => {
     setCalendarMonth((prev) => {
-      const current = prev || new Date();
-      return new Date(current.getFullYear(), current.getMonth() + 1, 1);
+      const current = prev || new Date(Date.UTC(2026, 10, 1));
+      return new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth() + 1, 1));
     });
   };
 
@@ -598,7 +595,10 @@ export default function ReservationPage() {
                     <h2 className="text-base sm:text-lg font-bold text-[#1C1917] mb-1">
                       Choose a time
                     </h2>
-                    <p className="text-xs font-semibold text-gray-500 mb-3 flex items-center gap-1.5">
+                    <p className="text-xs font-semibold text-gray-500 mb-3 flex flex-wrap items-center gap-x-1.5 gap-y-1">
+                      <span className="font-medium text-gray-400">
+                        Melbourne local time ·
+                      </span>
                       <span>Evening</span>
                       <span className="text-[11px] font-normal text-gray-400">
                         (Peak Dinner Service)
@@ -968,10 +968,16 @@ export default function ReservationPage() {
                 </svg>
               </button>
               <span className="text-sm font-semibold text-gray-800">
-                {(calendarMonth || new Date(2026, 10, 1)).toLocaleDateString("en-AU", {
-                  month: "short",
-                  year: "numeric",
-                })}
+                {formatDateOnly(
+                  toDateInputValue({
+                    year: (calendarMonth || new Date(Date.UTC(2026, 10, 1))).getUTCFullYear(),
+                    month:
+                      (calendarMonth || new Date(Date.UTC(2026, 10, 1))).getUTCMonth() +
+                      1,
+                    day: 1,
+                  }),
+                  { month: "short", year: "numeric" }
+                )}
               </span>
               <button
                 type="button"

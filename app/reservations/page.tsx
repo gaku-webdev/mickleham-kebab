@@ -4,6 +4,13 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
+import {
+  formatDateOnly,
+  formatClockTime,
+  formatMelbourneDateTime,
+  getMelbourneDateParts,
+  toDateInputValue,
+} from "@/lib/date-time";
 
 interface Reservation {
   id: string;
@@ -36,30 +43,16 @@ const EVENING_TIMES = [
 ];
 
 function formatDisplayDate(dateStr: string): string {
-  if (!dateStr) return "";
-  try {
-    const [year, month, day] = dateStr.split("-").map(Number);
-    const d = new Date(year, month - 1, day);
-    return d.toLocaleDateString("en-AU", {
-      weekday: "long",
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  } catch {
-    return dateStr;
-  }
+  return formatDateOnly(dateStr, {
+    weekday: "long",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 function formatTime12(timeVal: string): string {
-  if (!timeVal) return "";
-  const [hStr, mStr] = timeVal.split(":");
-  const h = parseInt(hStr, 10);
-  const m = mStr || "00";
-  const period = h >= 12 ? "pm" : "am";
-  const displayHour = h % 12 === 0 ? 12 : h % 12;
-  const padHour = displayHour < 10 ? `0${displayHour}` : `${displayHour}`;
-  return `${padHour}:${m} ${period}`;
+  return formatClockTime(timeVal);
 }
 
 export default function ReservationsManagePage() {
@@ -362,7 +355,7 @@ export default function ReservationsManagePage() {
   const [todayStr, setTodayStr] = useState("");
 
   useEffect(() => {
-    setTodayStr(new Date().toISOString().split("T")[0]);
+    setTodayStr(toDateInputValue(getMelbourneDateParts()));
   }, []);
 
   return (
@@ -574,7 +567,7 @@ export default function ReservationsManagePage() {
                       )}
                     </div>
                     <span className="text-xs text-gray-500 font-medium">
-                      Booked on {formatDisplayDate(booking.created_at.split("T")[0])}
+                      Booked on {formatMelbourneDateTime(booking.created_at)}
                     </span>
                   </div>
 
@@ -589,7 +582,9 @@ export default function ReservationsManagePage() {
                           </p>
                         </div>
                         <div>
-                          <p className="text-xs text-gray-400 font-medium">Time</p>
+                          <p className="text-xs text-gray-400 font-medium">
+                            Time · Melbourne
+                          </p>
                           <p className="text-sm font-bold text-gray-900 mt-0.5">
                             {formatTime12(booking.reservation_time)}
                           </p>

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
+import { formatMelbourneDateTime } from "@/lib/date-time";
 
 interface OrderItem {
   id: string;
@@ -193,22 +194,6 @@ export default function OrdersPage() {
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </span>
     );
-  };
-
-  const formatDate = (isoStr: string) => {
-    try {
-      const d = new Date(isoStr);
-      return d.toLocaleDateString("en-AU", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-      });
-    } catch {
-      return isoStr;
-    }
   };
 
   if (authLoading) {
@@ -414,7 +399,7 @@ export default function OrdersPage() {
 
                   <div className="text-right">
                     <p className="text-xs text-gray-500 font-medium">
-                      {formatDate(order.created_at)}
+                      {formatMelbourneDateTime(order.created_at)}
                     </p>
                   </div>
                 </div>

@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth-context";
 import {
   formatDateOnly,
   formatClockTime,
+  getMelbourneDayRange,
   formatMelbourneDateTime,
 } from "@/lib/date-time";
 
@@ -49,6 +50,13 @@ interface ReservationRow {
   reservation_time: string;
   party_size: number;
   status: string;
+}
+
+interface TodayOrderRow {
+  id: string;
+  total_amount?: number | null;
+  status?: string | null;
+  payment_status?: string | null;
 }
 
 const ITEMS_PER_PAGE = 8;
@@ -104,14 +112,18 @@ function ListPagination({
 }
 
 export default function AdminPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, session, loading: authLoading } = useAuth();
 
   const [roleLoading, setRoleLoading] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const [isAdminUser, setIsAdminUser] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [reservations, setReservations] = useState<ReservationRow[]>([]);
+  const [todayOrders, setTodayOrders] = useState<TodayOrderRow[]>([]);
+  const [todayOrderCount, setTodayOrderCount] = useState(0);
+  const [todayReservationCount, setTodayReservationCount] = useState(0);
   const [dataError, setDataError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -119,6 +131,10 @@ export default function AdminPage() {
   const [reservationSearch, setReservationSearch] = useState("");
   const [orderPage, setOrderPage] = useState(1);
   const [reservationPage, setReservationPage] = useState(1);
+  const [staffEmail, setStaffEmail] = useState("");
+  const [updatingStaffAccess, setUpdatingStaffAccess] = useState(false);
+  const [staffRoleError, setStaffRoleError] = useState<string | null>(null);
+  const [staffRoleNotice, setStaffRoleNotice] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<OrderRow | null>(null);
   const [selectedOrderItems, setSelectedOrderItems] = useState<OrderItemRow[]>(
     []
@@ -159,11 +175,15 @@ export default function AdminPage() {
 
       //if user is not logged in, set roleLoading to false and return
       if (!user) {
+        setIsAuthorized(false);
+        setIsAdminUser(false);
         setRoleLoading(false);
         return;
       }
 
       setRoleLoading(true);
+      setIsAuthorized(false);
+      setIsAdminUser(false);
       setDataError(null);
 
       // checking user's roles first
@@ -193,6 +213,14 @@ export default function AdminPage() {
           roleName === "admin" ||
           roleName === "staff");
 
+      const adminAccess =
+        !roleError &&
+        Boolean(
+          userRecord &&
+            (userRecord.role_id === 2 || roleName === "admin")
+        );
+      setIsAdminUser(adminAccess);
+
       if (!hasAdminOrStaffRole) {
         setIsAuthorized(false);
         setRoleLoading(false);
@@ -201,35 +229,88 @@ export default function AdminPage() {
 
       setIsAuthorized(true);
 
-      // if user is admin then we load the orders and reservations data for the dashboard
-      const [
-        { data: ordersData, error: ordersError },
-        { data: reservationsData, error: reservationsError },
-      ] = await Promise.all([
-        supabase
+      let dayRange: ReturnType<typeof getMelbourneDayRange>;
+      try {
+        dayRange = getMelbourneDayRange();
+      } catch (error: unknown) {
+        setDataError(
+          error instanceof Error
+            ? error.message
+            : "Could not calculate today's Melbourne date range."
+        );
+        setRoleLoading(false);
+        return;
+      }
+
+      let ordersQuery = supabase
           .from("orders")
           .select(
             "id, order_number, customer_name, customer_email, customer_phone, order_type, status, payment_status, subtotal, tax_amount, total_amount, promo_code, promo_discount_amount, pickup_time, table_number, guest_count, notes, created_at"
           )
-          .order("created_at", { ascending: false }),
-        supabase
+          .order("created_at", { ascending: false });
+      let reservationsQuery = supabase
           .from("reservations")
           .select(
             "id, customer_name, customer_email, reservation_date, reservation_time, party_size, status"
           )
           .order("reservation_date", { ascending: false })
-          .order("reservation_time", { ascending: false }),
+          .order("reservation_time", { ascending: false });
+
+      const todayOrdersQuery = supabase
+        .from("orders")
+        .select("id, total_amount, status, payment_status", { count: "exact" })
+        .gte("created_at", dayRange.start)
+        .lt("created_at", dayRange.end);
+      const todayReservationsQuery = supabase
+        .from("reservations")
+        .select("id", { count: "exact", head: true })
+        .eq("reservation_date", dayRange.date);
+
+      if (!adminAccess) {
+        ordersQuery = ordersQuery
+          .gte("created_at", dayRange.start)
+          .lt("created_at", dayRange.end);
+        reservationsQuery = reservationsQuery.eq("reservation_date", dayRange.date);
+      }
+
+      const [
+        { data: ordersData, error: ordersError },
+        { data: reservationsData, error: reservationsError },
+        {
+          data: todayOrdersData,
+          count: todayOrdersCount,
+          error: todayOrdersError,
+        },
+        {
+          count: todayReservationsCount,
+          error: todayReservationsError,
+        },
+      ] = await Promise.all([
+        ordersQuery,
+        reservationsQuery,
+        todayOrdersQuery,
+        todayReservationsQuery,
       ]);
 
-      if (ordersError || reservationsError) {
+      if (
+        ordersError ||
+        reservationsError ||
+        todayOrdersError ||
+        todayReservationsError
+      ) {
         setDataError(
           ordersError?.message ??
             reservationsError?.message ??
+            todayOrdersError?.message ??
+            todayReservationsError?.message ??
             "Failed to load dashboard data."
         );
       } else {
         setOrders((ordersData as OrderRow[]) ?? []);
         setReservations((reservationsData as ReservationRow[]) ?? []);
+        setTodayOrders((todayOrdersData as TodayOrderRow[]) ?? []);
+        setTodayOrderCount(todayOrdersCount ?? todayOrdersData?.length ?? 0);
+        setTodayReservationCount(todayReservationsCount ?? 0);
       }
 
       setRoleLoading(false);
@@ -237,6 +318,60 @@ export default function AdminPage() {
 
     verifyRoleAndLoadData();
   }, [user, authLoading]);
+
+  const handleStaffAccess = async (action: "grant" | "revoke") => {
+    setStaffRoleError(null);
+    setStaffRoleNotice(null);
+
+    const email = staffEmail.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setStaffRoleError("Enter a valid email address.");
+      return;
+    }
+    if (
+      action === "revoke" &&
+      !window.confirm(
+        `Revoke staff access for ${email}? Their account will remain active as a regular user.`
+      )
+    ) {
+      return;
+    }
+    if (!session?.access_token) {
+      setStaffRoleError("Your session has expired. Sign in again.");
+      return;
+    }
+
+    setUpdatingStaffAccess(true);
+    try {
+      const response = await fetch("/api/admin/staff", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ email, action }),
+      });
+      const result = (await response.json()) as {
+        message?: string;
+        error?: string;
+      };
+
+      if (!response.ok) {
+        setStaffRoleError(result.error ?? "Could not assign the staff role.");
+      } else {
+        setStaffRoleNotice(result.message ?? "Staff role assigned.");
+        setStaffEmail("");
+      }
+    } catch (error: unknown) {
+      setStaffRoleError(
+        error instanceof Error
+          ? error.message
+          : "Could not assign the staff role. Please try again."
+      );
+    } finally {
+      setUpdatingStaffAccess(false);
+    }
+  };
 
   const updateOrderStatus = async (id: string, status: string) => {
     setUpdatingId(id);
@@ -252,6 +387,11 @@ export default function AdminPage() {
         setActionError(`Could not update order status: ${error.message}`);
       } else {
         setOrders((current) =>
+          current.map((order) =>
+            order.id === id ? { ...order, status } : order
+          )
+        );
+        setTodayOrders((current) =>
           current.map((order) =>
             order.id === id ? { ...order, status } : order
           )
@@ -363,6 +503,15 @@ export default function AdminPage() {
   const paginatedReservations = filteredReservations.slice(
     (reservationPage - 1) * ITEMS_PER_PAGE,
     reservationPage * ITEMS_PER_PAGE
+  );
+  const paidTodayOrders = todayOrders.filter(
+    (order) =>
+      order.payment_status?.toLowerCase() === "paid" &&
+      order.status?.toLowerCase() !== "cancelled"
+  );
+  const todaySales = paidTodayOrders.reduce(
+    (total, order) => total + Number(order.total_amount ?? 0),
+    0
   );
 
   // 1. Loading State
@@ -504,6 +653,48 @@ export default function AdminPage() {
           </p>
         </div>
 
+        <section
+          aria-labelledby="today-stats-heading"
+          className="mt-6 rounded-2xl border border-[#EBE6DD] bg-white p-5 shadow-sm sm:p-6"
+        >
+          <div className="mb-4">
+            <p className="text-xs font-bold uppercase tracking-wider text-[#C2410C]">
+              Today
+            </p>
+            <h2
+              id="today-stats-heading"
+              className="mt-1 text-xl font-extrabold"
+            >
+              Daily stats
+            </h2>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl bg-[#FAF7F2] p-4">
+              <p className="text-sm font-medium text-gray-600">Orders</p>
+              <p className="mt-1 text-2xl font-extrabold">{todayOrderCount}</p>
+            </div>
+            <div className="rounded-xl bg-[#FAF7F2] p-4">
+              <p className="text-sm font-medium text-gray-600">Reservations</p>
+              <p className="mt-1 text-2xl font-extrabold">
+                {todayReservationCount}
+              </p>
+            </div>
+            <div className="rounded-xl bg-[#FAF7F2] p-4">
+              <p className="text-sm font-medium text-gray-600">Sales</p>
+              <p className="mt-1 text-2xl font-extrabold">
+                {new Intl.NumberFormat("en-AU", {
+                  style: "currency",
+                  currency: "AUD",
+                }).format(todaySales)}
+              </p>
+              <p className="mt-1 text-xs text-gray-500">
+                {paidTodayOrders.length} paid{" "}
+                {paidTodayOrders.length === 1 ? "order" : "orders"}
+              </p>
+            </div>
+          </div>
+        </section>
+
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <a
             href="#orders"
@@ -585,6 +776,67 @@ export default function AdminPage() {
             </span>
           </Link>
         </div>
+
+        {isAdminUser && (
+          <section className="mt-6 rounded-2xl border border-[#EBE6DD] bg-white p-5 shadow-sm sm:p-6">
+            <div className="max-w-2xl">
+              <p className="text-xs font-bold uppercase tracking-wider text-[#C2410C]">
+                Team access
+              </p>
+              <h2 className="mt-1 text-xl font-extrabold">Give someone a staff role</h2>
+              <p className="mt-1 text-sm leading-6 text-gray-600">
+                Enter the email address on their existing account. They can open the staff board after they sign in.
+              </p>
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void handleStaffAccess("grant");
+                }}
+                className="mt-4 flex flex-col gap-3 sm:flex-row"
+              >
+                <label className="sr-only" htmlFor="staff-role-email">
+                  Staff account email
+                </label>
+                <input
+                  id="staff-role-email"
+                  type="email"
+                  required
+                  maxLength={254}
+                  autoComplete="email"
+                  value={staffEmail}
+                  onChange={(event) => setStaffEmail(event.target.value)}
+                  placeholder="name@example.com"
+                  className="min-h-12 min-w-0 flex-1 rounded-xl border border-[#E7E1D8] px-4 text-sm outline-none transition focus:border-[#C2410C] focus:ring-2 focus:ring-orange-100"
+                />
+                <button
+                  type="submit"
+                  disabled={updatingStaffAccess}
+                  className="min-h-12 rounded-xl bg-[#C2410C] px-5 text-sm font-bold text-white transition hover:bg-[#9A3412] disabled:cursor-wait disabled:opacity-60"
+                >
+                  {updatingStaffAccess ? "Updating access…" : "Grant staff access"}
+                </button>
+                <button
+                  type="button"
+                  disabled={updatingStaffAccess || !staffEmail.trim()}
+                  onClick={() => void handleStaffAccess("revoke")}
+                  className="min-h-12 rounded-xl border border-red-200 px-5 text-sm font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Revoke staff access
+                </button>
+              </form>
+              {staffRoleError && (
+                <p role="alert" className="mt-3 text-sm font-medium text-red-700">
+                  {staffRoleError}
+                </p>
+              )}
+              {staffRoleNotice && (
+                <p role="status" className="mt-3 text-sm font-medium text-emerald-700">
+                  {staffRoleNotice}
+                </p>
+              )}
+            </div>
+          </section>
+        )}
 
         {(actionError || notice) && (
           <div

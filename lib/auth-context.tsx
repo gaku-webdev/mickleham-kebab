@@ -145,8 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
-  // role_id 2 = admin, role_id 3 = staff (this is for admin auth)
-  const isAdmin = profile?.role_id === 2 || profile?.role_id === 3;
+  const isAdmin = profile?.role_id === 2;
 
   return (
     <AuthContext.Provider

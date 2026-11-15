@@ -9,16 +9,14 @@ export function getSupabaseAdmin() {
   if (adminClient) return adminClient;
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const serviceRoleKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !serviceRoleKey) {
+  const secretKey = process.env.SUPABASE_SECRET_KEY;
+  if (!supabaseUrl || !secretKey) {
     throw new Error(
-      "Missing server Supabase configuration. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or NEXT_PUBLIC_SUPABASE_ANON_KEY)."
+      "Missing server Supabase configuration. Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY."
     );
   }
 
-  adminClient = createClient(supabaseUrl, serviceRoleKey, {
+  adminClient = createClient(supabaseUrl, secretKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,

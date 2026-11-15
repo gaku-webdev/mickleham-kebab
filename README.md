@@ -27,10 +27,10 @@ Create `.env.local` in the project root and add the Supabase project URL and key
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
-SUPABASE_SERVICE_ROLE_KEY=your-server-only-service-role-key
+SUPABASE_SECRET_KEY=your-server-only-secret-key
 ```
 
-Keep `SUPABASE_SERVICE_ROLE_KEY` secret and never prefix it with `NEXT_PUBLIC_`.
+Keep `SUPABASE_SECRET_KEY` secret and never prefix it with `NEXT_PUBLIC_`.
 The Stripe webhook uses it to save paid orders and their immutable item-price
 snapshots. Apply the SQL files in `supabase/migrations/` to your Supabase project
 before deploying these changes.

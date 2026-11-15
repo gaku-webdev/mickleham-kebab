@@ -11,7 +11,8 @@ export default function Header() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const pathname = usePathname();
   const { items, total, isCartOpen, setIsCartOpen } = useCart();
-  const { user, isAdmin, signOut } = useAuth();
+  const { user, profile, isAdmin, signOut } = useAuth();
+  const hasStaffAccess = profile?.role_id === 2 || profile?.role_id === 3;
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
   const navLinkClass = (href: string) => {
@@ -220,14 +221,25 @@ export default function Header() {
                     </>
                   )}
                 </div>
-                {isAdmin && (
-                  <Link
-                    href="/admin"
-                    aria-label="Go to admin page"
-                    className="px-3 py-1.5 bg-[#C2410C] hover:bg-[#9A3412] text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors"
-                  >
-                    Admin
-                  </Link>
+                {hasStaffAccess && (
+                  <div className="flex items-center gap-2">
+                    <Link
+                      href="/staff"
+                      aria-label="Go to staff service board"
+                      className="px-3 py-1.5 border border-[#C2410C] bg-white text-[#C2410C] hover:bg-orange-50 rounded-lg text-xs sm:text-sm font-semibold transition-colors"
+                    >
+                      Staff
+                    </Link>
+                    {isAdmin && (
+                      <Link
+                        href="/admin"
+                        aria-label="Go to admin page"
+                        className="px-3 py-1.5 bg-[#C2410C] hover:bg-[#9A3412] text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors"
+                      >
+                        Admin
+                      </Link>
+                    )}
+                  </div>
                 )}
               </div>
             ) : (

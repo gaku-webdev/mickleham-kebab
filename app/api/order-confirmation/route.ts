@@ -137,7 +137,7 @@ export async function GET(request: NextRequest) {
           customer_email: customerEmail,
           customer_phone: customerPhone,
           order_type: orderType,
-          status: "pending",
+          status: "preparing",
           payment_status: "paid",
           stripe_session_id: session.id,
           subtotal: subtotalCents / 100,

@@ -194,3 +194,26 @@ export function melbourneDateTimeInputToISOString(value: string): string | null 
 
   return null;
 }
+
+export function getMelbourneDayRange(date = new Date()): {
+  date: string;
+  start: string;
+  end: string;
+} {
+  const today = toDateInputValue(getMelbourneDateParts(date));
+  const [year, month, day] = today.split("-").map(Number);
+  const tomorrow = new Date(Date.UTC(year, month - 1, day + 1));
+  const tomorrowValue = toDateInputValue({
+    year: tomorrow.getUTCFullYear(),
+    month: tomorrow.getUTCMonth() + 1,
+    day: tomorrow.getUTCDate(),
+  });
+  const start = melbourneDateTimeInputToISOString(`${today}T00:00`);
+  const end = melbourneDateTimeInputToISOString(`${tomorrowValue}T00:00`);
+
+  if (!start || !end) {
+    throw new Error("Could not calculate the Melbourne date range.");
+  }
+
+  return { date: today, start, end };
+}

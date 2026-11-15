@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
             session.metadata?.customerPhone ??
             "",
           order_type: session.metadata?.orderType ?? "Unknown",
-          status: "pending",
+          status: "preparing",
           payment_status: "paid",
           stripe_session_id: session.id,
           subtotal: Number(session.metadata?.subtotalBeforeDiscountCents ?? 0) / 100,

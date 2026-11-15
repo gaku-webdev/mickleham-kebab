@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
       orderId = newOrder.id;
     }
 
-    const orderItemRows = lineItems.data.map((item) => {
+    const orderItemRows = lineItems.data.map((item: Stripe.LineItem) => {
       const quantity = item.quantity ?? 1;
       const amountSubtotal = item.amount_subtotal;
       const amountTotal = item.amount_total;

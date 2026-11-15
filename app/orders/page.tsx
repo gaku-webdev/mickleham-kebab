@@ -80,51 +80,39 @@ export default function OrdersPage() {
     async (
       queryTerm?: string
     ): Promise<{ orders: Order[]; errorMessage: string | null }> => {
-      if (!user) {
+      if (!user || !user.email) {
         return { orders: [], errorMessage: null };
       }
 
       try {
-        const ownerFilter = user.email
-          ? `user_id.eq.${user.id},customer_email.eq.${user.email}`
-          : `user_id.eq.${user.id}`;
-
-        let query = supabase
+        // Strictly fetch only orders matching this logged in user's exact email address
+        const { data, error } = await supabase
           .from("orders")
           .select("*")
           .order("created_at", { ascending: false })
-          .or(ownerFilter);
-
-        const term = queryTerm?.trim();
-
-        if (term) {
-          const clean = term.replace(/^#/, "");
-          const digits = clean.replace(/\D/g, "");
-
-          const conditions: string[] = [
-            `order_number.ilike.%${clean}%`,
-            `customer_name.ilike.%${clean}%`,
-            `customer_email.ilike.%${clean}%`,
-            `customer_phone.ilike.%${clean}%`,
-          ];
-
-          if (digits.length >= 8) {
-            conditions.push(`customer_phone.ilike.%${digits}%`);
-            if (digits.length === 10) {
-              const formatted = `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
-              conditions.push(`customer_phone.ilike.%${formatted}%`);
-            }
-          }
-
-          query = query.or(conditions.join(","));
-        }
-        const { data, error } = await query;
+          .ilike("customer_email", user.email);
 
         if (error) {
           return { orders: [], errorMessage: error.message };
         }
 
-        const loadedOrders = data ?? [];
+        let loadedOrders = (data ?? []).filter(
+          (order) =>
+            order.customer_email?.trim().toLowerCase() ===
+            user.email?.trim().toLowerCase()
+        );
+
+        const term = queryTerm?.trim().toLowerCase();
+        if (term) {
+          const clean = term.replace(/^#/, "");
+          loadedOrders = loadedOrders.filter((order) => {
+            const matchesOrderNum = order.order_number?.toLowerCase().includes(clean);
+            const matchesNotes = order.notes?.toLowerCase().includes(clean);
+            const matchesPhone = order.customer_phone?.toLowerCase().includes(clean);
+            return matchesOrderNum || matchesNotes || matchesPhone;
+          });
+        }
+
         if (loadedOrders.length === 0) {
           return { orders: [], errorMessage: null };
         }

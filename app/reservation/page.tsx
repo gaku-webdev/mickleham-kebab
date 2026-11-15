@@ -23,19 +23,30 @@ interface BookingResult {
   specialNotes?: string;
 }
 
-// Evening times from 5:30 PM
-const EVENING_TIMES = [
-  { value: "17:30:00", label: "5:30 pm" },
-  { value: "18:00:00", label: "6:00 pm" },
-  { value: "18:30:00", label: "6:30 pm" },
-  { value: "19:00:00", label: "7:00 pm" },
-  { value: "19:30:00", label: "7:30 pm" },
-  { value: "20:00:00", label: "8:00 pm" },
-  { value: "20:30:00", label: "8:30 pm" },
-  { value: "21:00:00", label: "9:00 pm" },
-  { value: "21:30:00", label: "9:30 pm" },
-  { value: "22:00:00", label: "10:00 pm" },
-  { value: "22:30:00", label: "10:30 pm" },
+export interface OperatingHour {
+  id: number;
+  day_of_week: number;
+  day_name: string;
+  open_time: string;
+  close_time: string;
+  is_closed: boolean;
+}
+
+// Default evening times if database is still loading
+const DEFAULT_EVENING_TIMES = [
+  { value: "17:30:00", label: "5:30 pm", mins: 17 * 60 + 30 },
+  { value: "18:00:00", label: "6:00 pm", mins: 18 * 60 },
+  { value: "18:30:00", label: "6:30 pm", mins: 18 * 60 + 30 },
+  { value: "19:00:00", label: "7:00 pm", mins: 19 * 60 },
+  { value: "19:30:00", label: "7:30 pm", mins: 19 * 60 + 30 },
+  { value: "20:00:00", label: "8:00 pm", mins: 20 * 60 },
+  { value: "20:30:00", label: "8:30 pm", mins: 20 * 60 + 30 },
+  { value: "21:00:00", label: "9:00 pm", mins: 21 * 60 },
+  { value: "21:30:00", label: "9:30 pm", mins: 21 * 60 + 30 },
+  { value: "22:00:00", label: "10:00 pm", mins: 22 * 60 },
+  { value: "22:30:00", label: "10:30 pm", mins: 22 * 60 + 30 },
+  { value: "23:00:00", label: "11:00 pm", mins: 23 * 60 },
+  { value: "23:30:00", label: "11:30 pm", mins: 23 * 60 + 30 },
 ];
 
 const GUEST_OPTIONS = [1, 2, 3, 4, 5, 6, 7];
@@ -81,6 +92,87 @@ export default function ReservationPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [rlsHelp, setRlsHelp] = useState(false);
   const [copiedRef, setCopiedRef] = useState(false);
+
+  // Operating Hours state (Task 10.4 Dynamic Check from Supabase)
+  const [operatingHours, setOperatingHours] = useState<OperatingHour[]>([]);
+  const [loadingHours, setLoadingHours] = useState(true);
+
+  // Fetch operating_hours dynamically from Supabase
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchOperatingHours() {
+      try {
+        const { data, error } = await supabase
+          .from("operating_hours")
+          .select("*")
+          .order("day_of_week", { ascending: true });
+
+        if (!error && data && data.length > 0 && isMounted) {
+          setOperatingHours(data as OperatingHour[]);
+        }
+      } catch (err) {
+        console.error("Failed to load operating hours:", err);
+      } finally {
+        if (isMounted) setLoadingHours(false);
+      }
+    }
+    fetchOperatingHours();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Compute operating hours for currently selected reservation date
+  const selectedDayInfo = useMemo(() => {
+    if (!selectedDate) return null;
+    const [y, m, d] = selectedDate.split("-").map(Number);
+    const dayOfWeek = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+
+    if (operatingHours.length > 0) {
+      const found = operatingHours.find((oh) => oh.day_of_week === dayOfWeek);
+      if (found) return found;
+    }
+
+    // Default fallback: Sun-Wed closes 10:30 PM, Thu-Sat closes 11:45 PM
+    const isThuFriSat = dayOfWeek >= 4;
+    const dayNames = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
+    return {
+      id: dayOfWeek + 1,
+      day_of_week: dayOfWeek,
+      day_name: dayNames[dayOfWeek],
+      open_time: "10:00:00",
+      close_time: isThuFriSat ? "23:45:00" : "22:30:00",
+      is_closed: false,
+    };
+  }, [selectedDate, operatingHours]);
+
+  // Compute available evening dinner slots (from 5:30 PM up to that day's closing time)
+  const availableEveningTimes = useMemo(() => {
+    if (!selectedDayInfo || selectedDayInfo.is_closed) return [];
+
+    const [cH, cM] = selectedDayInfo.close_time.split(":").map(Number);
+    const closeMins = cH * 60 + cM;
+
+    return DEFAULT_EVENING_TIMES.filter((slot) => slot.mins <= closeMins);
+  }, [selectedDayInfo]);
+
+  // If selectedTime is no longer valid for the selected date, adjust to first available slot
+  useEffect(() => {
+    if (availableEveningTimes.length > 0) {
+      const exists = availableEveningTimes.some((t) => t.value === selectedTime);
+      if (!exists) {
+        setSelectedTime(availableEveningTimes[0].value);
+      }
+    }
+  }, [availableEveningTimes, selectedTime]);
 
   // Initialize today's date and pre-fill user info if logged in
   useEffect(() => {
@@ -153,10 +245,32 @@ export default function ReservationPage() {
     setRlsHelp(false);
     setLoading(true);
 
+    if (selectedDayInfo?.is_closed) {
+      setErrorMessage(
+        `The restaurant is closed on ${selectedDayInfo.day_name}. Please choose another reservation date.`
+      );
+      setLoading(false);
+      return;
+    }
+
+    const isSlotValid = availableEveningTimes.some(
+      (slot) => slot.value === selectedTime
+    );
+    if (!isSlotValid) {
+      setErrorMessage(
+        "The selected time slot is outside operating hours for this date."
+      );
+      setLoading(false);
+      return;
+    }
+
     const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
     const finalGuests = isCustomGuests
       ? parseInt(customGuestsCount, 10) || 8
       : selectedGuests;
+
+    // Guarantee that logged-in user always saves their own verified email
+    const finalEmail = (user?.email || email).trim();
 
     const newId =
       typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -171,7 +285,7 @@ export default function ReservationPage() {
       const insertPayload: Record<string, unknown> = {
         user_id: user?.id || null,
         customer_name: fullName,
-        customer_email: email.trim(),
+        customer_email: finalEmail,
         customer_phone: phone.trim().startsWith("+")
           ? phone.trim()
           : `+61 ${phone.trim()}`,
@@ -202,7 +316,7 @@ export default function ReservationPage() {
         setConfirmedBooking({
           reference: refNumber,
           fullName,
-          email: email.trim(),
+          email: finalEmail,
           phone: phone.trim().startsWith("+") ? phone.trim() : `+61 ${phone.trim()}`,
           date: selectedDate,
           time: selectedTime,
@@ -591,44 +705,85 @@ export default function ReservationPage() {
                     </div>
                   </div>
 
-                  {/* Choose a time (Evening Slots only from 5:30 PM as requested) */}
+                  {/* Choose a time (Task 10.4: Opening Hours Check from Supabase) */}
                   <div>
-                    <h2 className="text-base sm:text-lg font-bold text-[#1C1917] mb-1">
-                      Choose a time
-                    </h2>
-                    <p className="text-xs font-semibold text-gray-500 mb-3 flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                      <span className="font-medium text-gray-400">
-                        Melbourne local time ·
+                    <div className="flex items-center justify-between mb-1">
+                      <h2 className="text-base sm:text-lg font-bold text-[#1C1917]">
+                        Choose a time
+                      </h2>
+                      <span className="text-[11px] font-semibold text-gray-500">
+                        Melbourne local time
                       </span>
-                      <span>Evening</span>
-                      <span className="text-[11px] font-normal text-gray-400">
-                        (Peak Dinner Service)
+                    </div>
+
+                    {/* Task 10.4 Opening Hours Status Banner */}
+                    <div className="p-3 rounded-xl bg-orange-50/70 border border-orange-200 mb-3 text-xs flex flex-wrap items-center justify-between gap-2 shadow-2xs">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            selectedDayInfo?.is_closed
+                              ? "bg-red-500"
+                              : "bg-emerald-500 animate-pulse"
+                          }`}
+                        />
+                        <span className="font-bold text-gray-900">
+                          Opening Hours ({selectedDayInfo?.day_name || "Today"}):
+                        </span>
+                        {selectedDayInfo?.is_closed ? (
+                          <span className="text-red-600 font-bold uppercase tracking-wide">
+                            Closed
+                          </span>
+                        ) : (
+                          <span className="text-gray-700 font-semibold">
+                            {formatTime12(selectedDayInfo?.open_time || "10:00:00")} –{" "}
+                            {formatTime12(selectedDayInfo?.close_time || "22:30:00")}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] font-semibold text-[#C2410C] bg-white px-2.5 py-0.5 rounded-md border border-orange-200/80 shadow-2xs">
+                        Peak Dinner Service from 5:30 pm
                       </span>
-                    </p>
+                    </div>
 
-                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2.5">
-                      {EVENING_TIMES.map((slot) => {
-                        const isSelected = selectedTime === slot.value;
-                        const isPassed = isTimeSlotPassedToday(slot.value);
+                    {selectedDayInfo?.is_closed ? (
+                      <div className="p-5 bg-red-50 border border-red-200 rounded-xl text-center">
+                        <p className="text-sm font-bold text-red-700">
+                          Restaurant is Closed on {selectedDayInfo.day_name}s
+                        </p>
+                        <p className="text-xs text-red-600 mt-1">
+                          We do not accept table reservations on closed days. Please choose another date above.
+                        </p>
+                      </div>
+                    ) : availableEveningTimes.length === 0 ? (
+                      <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-500 text-center">
+                        No evening dinner slots available for this date.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2.5">
+                        {availableEveningTimes.map((slot) => {
+                          const isSelected = selectedTime === slot.value;
+                          const isPassed = isTimeSlotPassedToday(slot.value);
 
-                        return (
-                          <button
-                            key={slot.value}
-                            type="button"
-                            disabled={isPassed}
-                            onClick={() => setSelectedTime(slot.value)}
-                            className={`py-2.5 px-2 rounded-xl border text-xs text-center transition-all cursor-pointer ${isPassed
-                                ? "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed line-through"
-                                : isSelected
+                          return (
+                            <button
+                              key={slot.value}
+                              type="button"
+                              disabled={isPassed}
+                              onClick={() => setSelectedTime(slot.value)}
+                              className={`py-2.5 px-2 rounded-xl border text-xs text-center transition-all cursor-pointer ${
+                                isPassed
+                                  ? "border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed line-through"
+                                  : isSelected
                                   ? "border-red-500 bg-red-50/80 text-red-600 font-bold shadow-xs ring-1 ring-red-400"
                                   : "border-gray-200 bg-white hover:border-gray-300 text-gray-800 hover:bg-gray-50 font-medium"
                               }`}
-                          >
-                            {slot.label}
-                          </button>
-                        );
-                      })}
-                    </div>
+                            >
+                              {slot.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -724,8 +879,9 @@ export default function ReservationPage() {
 
                     <button
                       type="button"
+                      disabled={Boolean(selectedDayInfo?.is_closed)}
                       onClick={handleProceed}
-                      className="w-full py-3.5 px-6 bg-[#C2410C] hover:bg-[#9A3412] text-white rounded-xl font-extrabold text-sm tracking-wider uppercase transition-colors shadow-sm cursor-pointer flex items-center justify-center gap-2"
+                      className="w-full py-3.5 px-6 bg-[#C2410C] hover:bg-[#9A3412] text-white rounded-xl font-extrabold text-sm tracking-wider uppercase transition-colors shadow-sm cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       PROCEED
                     </button>
@@ -822,20 +978,32 @@ export default function ReservationPage() {
 
               {/* Email ID */}
               <div>
-                <label
-                  htmlFor="emailId"
-                  className="block text-xs font-semibold text-gray-700 mb-1"
-                >
-                  Email ID
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label
+                    htmlFor="emailId"
+                    className="block text-xs font-semibold text-gray-700"
+                  >
+                    Email ID
+                  </label>
+                  {user?.email && (
+                    <span className="text-[10px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      Signed-in account
+                    </span>
+                  )}
+                </div>
                 <input
                   id="emailId"
                   type="email"
                   required
-                  value={email}
+                  readOnly={Boolean(user?.email)}
+                  value={user?.email || email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="john@example.com"
-                  className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-gray-300 text-gray-900 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                  className={`w-full px-3.5 py-2.5 text-sm rounded-lg border text-gray-900 focus:outline-none transition-all ${
+                    user?.email
+                      ? "bg-gray-50 border-gray-200 cursor-not-allowed text-gray-600 font-medium"
+                      : "border-gray-300 focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                  }`}
                 />
               </div>
 

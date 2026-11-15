@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import Loader from "@/components/Loader";
 import { supabase } from "@/lib/supabase";
@@ -28,19 +28,30 @@ interface Reservation {
   updated_at?: string;
 }
 
+export interface OperatingHour {
+  id: number;
+  day_of_week: number;
+  day_name: string;
+  open_time: string;
+  close_time: string;
+  is_closed: boolean;
+}
+
 // Evening times from 5:30 PM (Task 10.4)
-const EVENING_TIMES = [
-  { value: "17:30:00", label: "05:30 pm" },
-  { value: "18:00:00", label: "06:00 pm" },
-  { value: "18:30:00", label: "06:30 pm" },
-  { value: "19:00:00", label: "07:00 pm" },
-  { value: "19:30:00", label: "07:30 pm" },
-  { value: "20:00:00", label: "08:00 pm" },
-  { value: "20:30:00", label: "08:30 pm" },
-  { value: "21:00:00", label: "09:00 pm" },
-  { value: "21:30:00", label: "09:30 pm" },
-  { value: "22:00:00", label: "10:00 pm" },
-  { value: "22:30:00", label: "10:30 pm" },
+const DEFAULT_EVENING_TIMES = [
+  { value: "17:30:00", label: "05:30 pm", mins: 17 * 60 + 30 },
+  { value: "18:00:00", label: "06:00 pm", mins: 18 * 60 },
+  { value: "18:30:00", label: "06:30 pm", mins: 18 * 60 + 30 },
+  { value: "19:00:00", label: "07:00 pm", mins: 19 * 60 },
+  { value: "19:30:00", label: "07:30 pm", mins: 19 * 60 + 30 },
+  { value: "20:00:00", label: "08:00 pm", mins: 20 * 60 },
+  { value: "20:30:00", label: "08:30 pm", mins: 20 * 60 + 30 },
+  { value: "21:00:00", label: "09:00 pm", mins: 21 * 60 },
+  { value: "21:30:00", label: "09:30 pm", mins: 21 * 60 + 30 },
+  { value: "22:00:00", label: "10:00 pm", mins: 22 * 60 },
+  { value: "22:30:00", label: "10:30 pm", mins: 22 * 60 + 30 },
+  { value: "23:00:00", label: "11:00 pm", mins: 23 * 60 },
+  { value: "23:30:00", label: "11:30 pm", mins: 23 * 60 + 30 },
 ];
 
 function formatDisplayDate(dateStr: string): string {
@@ -68,6 +79,9 @@ export default function ReservationsManagePage() {
   const [isSearching, setIsSearching] = useState(false);
   const [searched, setSearched] = useState(false);
 
+  // Operating Hours state (Task 10.4)
+  const [operatingHours, setOperatingHours] = useState<OperatingHour[]>([]);
+
   // Modify Modal state
   const [modifyingBooking, setModifyingBooking] = useState<Reservation | null>(null);
   const [editDate, setEditDate] = useState("");
@@ -84,6 +98,78 @@ export default function ReservationsManagePage() {
   // Guest Security Prompt Modal state
   const [authPromptBooking, setAuthPromptBooking] = useState<Reservation | null>(null);
 
+  // Fetch operating_hours dynamically from Supabase
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchOperatingHours() {
+      try {
+        const { data, error } = await supabase
+          .from("operating_hours")
+          .select("*")
+          .order("day_of_week", { ascending: true });
+
+        if (!error && data && data.length > 0 && isMounted) {
+          setOperatingHours(data as OperatingHour[]);
+        }
+      } catch (err) {
+        console.error("Failed to load operating hours:", err);
+      }
+    }
+    fetchOperatingHours();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Compute operating hours for the edit date in the modify modal
+  const editDayInfo = useMemo(() => {
+    if (!editDate) return null;
+    const [y, m, d] = editDate.split("-").map(Number);
+    const dayOfWeek = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+
+    if (operatingHours.length > 0) {
+      const found = operatingHours.find((oh) => oh.day_of_week === dayOfWeek);
+      if (found) return found;
+    }
+
+    const isThuFriSat = dayOfWeek >= 4;
+    const dayNames = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
+    return {
+      id: dayOfWeek + 1,
+      day_of_week: dayOfWeek,
+      day_name: dayNames[dayOfWeek],
+      open_time: "10:00:00",
+      close_time: isThuFriSat ? "23:45:00" : "22:30:00",
+      is_closed: false,
+    };
+  }, [editDate, operatingHours]);
+
+  // Compute available evening slots for the edit date
+  const editAvailableTimes = useMemo(() => {
+    if (!editDayInfo || editDayInfo.is_closed) return [];
+    const [cH, cM] = editDayInfo.close_time.split(":").map(Number);
+    const closeMins = cH * 60 + cM;
+    return DEFAULT_EVENING_TIMES.filter((slot) => slot.mins <= closeMins);
+  }, [editDayInfo]);
+
+  // If editTime is no longer in editAvailableTimes, set to first available
+  useEffect(() => {
+    if (editAvailableTimes.length > 0 && editTime) {
+      const exists = editAvailableTimes.some((t) => t.value === editTime);
+      if (!exists) {
+        setEditTime(editAvailableTimes[0].value);
+      }
+    }
+  }, [editAvailableTimes, editTime]);
+
   // Fetch reservations dynamically (Strictly email or phone for guest lookups)
   const fetchReservations = useCallback(
     async (searchTerm?: string) => {
@@ -98,13 +184,57 @@ export default function ReservationsManagePage() {
 
         const clean = searchTerm?.trim();
 
-        if (clean) {
-          // Strictly Email or Phone ONLY — prevent searching by arbitrary names
+        if (user && user.email) {
+          // STRICT RULE: Logged-in user view ONLY fetches bookings made with THIS exact email!
+          const userEmail = user.email.trim();
+          query = query.ilike("customer_email", userEmail);
+
+          const { data, error } = await query;
+          if (error) {
+            setErrorMessage(error.message);
+          } else {
+            // Absolute client-side guarantee: only reservations whose email matches user.email
+            let userBookings = (data || []).filter(
+              (r) =>
+                r.customer_email?.trim().toLowerCase() ===
+                userEmail.toLowerCase()
+            );
+
+            // If a search term was entered by the user, filter within their own bookings
+            if (clean) {
+              const term = clean.toLowerCase();
+              const termDigits = clean.replace(/\D/g, "");
+              userBookings = userBookings.filter((r) => {
+                const phoneMatch =
+                  termDigits.length >= 3 &&
+                  r.customer_phone?.replace(/\D/g, "").includes(termDigits);
+                const refCode = r.id.replace(/-/g, "").toLowerCase();
+                const refMatch =
+                  refCode.includes(term.replace(/^mk-?/, "")) ||
+                  term.includes(refCode.substring(0, 6));
+                const dateMatch = r.reservation_date.includes(term);
+                return phoneMatch || refMatch || dateMatch;
+              });
+            }
+
+            setReservations(userBookings);
+          }
+
+          // Automatically link unlinked reservations for this email to user_id
+          supabase
+            .from("reservations")
+            .update({ user_id: user.id })
+            .ilike("customer_email", userEmail)
+            .is("user_id", null)
+            .then(() => {});
+        } else if (clean) {
+          // Unauthenticated Guest search: Strictly Email or Phone ONLY
           const isEmail = clean.includes("@");
           const digits = clean.replace(/\D/g, "");
 
           if (isEmail) {
-            query = query.ilike("customer_email", `%${clean}%`);
+            // Strict exact email match — NOT `%${clean}%` which leaks multiple emails sharing letters
+            query = query.ilike("customer_email", clean);
           } else if (digits.length >= 6) {
             query = query.or(
               `customer_phone.ilike.%${digits}%,customer_phone.ilike.%+61 ${digits}%`
@@ -117,40 +247,37 @@ export default function ReservationsManagePage() {
             setLoading(false);
             return;
           }
-        } else if (user) {
-          // Logged-in user view: ONLY fetch this user's bookings
-          query = query.or(
-            `user_id.eq.${user.id},customer_email.ilike.${user.email}`
-          );
 
-          // Automatically link unlinked reservations for this email to user_id
-          if (user.email) {
-            supabase
-              .from("reservations")
-              .update({ user_id: user.id })
-              .eq("customer_email", user.email)
-              .is("user_id", null)
-              .then(() => {});
+          const { data, error } = await query;
+
+          if (error) {
+            setErrorMessage(error.message);
+          } else {
+            if (isEmail) {
+              // Enforce exact email match client-side
+              const exact = (data || []).filter(
+                (r) =>
+                  r.customer_email?.trim().toLowerCase() ===
+                  clean.toLowerCase()
+              );
+              setReservations(exact);
+            } else {
+              setReservations(data || []);
+            }
           }
         } else {
-          // Guest without search: Never expose all reservations
+          // Guest without search: Never expose any reservations
           setReservations([]);
           setLoading(false);
           return;
-        }
-
-        const { data, error } = await query;
-
-        if (error) {
-          setErrorMessage(error.message);
-        } else {
-          setReservations(data || []);
         }
       } catch (err: unknown) {
         if (err instanceof Error) {
           setErrorMessage(err.message);
         } else {
-          setErrorMessage("An unexpected error occurred while loading reservations.");
+          setErrorMessage(
+            "An unexpected error occurred while loading reservations."
+          );
         }
       } finally {
         setLoading(false);
@@ -194,18 +321,13 @@ export default function ReservationsManagePage() {
     }
   };
 
-  // Check if current user is the verified owner of a booking
+  // Check if current user is the verified owner of a booking (Strictly by Email match)
   const checkOwnership = (booking: Reservation): boolean => {
-    if (!user) return false;
-    if (booking.user_id && user.id === booking.user_id) return true;
-    if (
-      user.email &&
-      booking.customer_email &&
-      user.email.toLowerCase() === booking.customer_email.toLowerCase()
-    ) {
-      return true;
-    }
-    return false;
+    if (!user || !user.email) return false;
+    return (
+      booking.customer_email?.trim().toLowerCase() ===
+      user.email.trim().toLowerCase()
+    );
   };
 
   // Open Modify Modal (Only for verified account owner)
@@ -239,6 +361,23 @@ export default function ReservationsManagePage() {
     if (!checkOwnership(modifyingBooking)) {
       setModifyError(
         `Security verification required: You must be signed in with ${modifyingBooking.customer_email} to modify this reservation.`
+      );
+      return;
+    }
+
+    if (editDayInfo?.is_closed) {
+      setModifyError(
+        `The restaurant is closed on ${editDayInfo.day_name}. Please choose another reservation date.`
+      );
+      return;
+    }
+
+    const isSlotValid = editAvailableTimes.some(
+      (slot) => slot.value === editTime
+    );
+    if (!isSlotValid) {
+      setModifyError(
+        "The selected time slot is outside operating hours for this date."
       );
       return;
     }
@@ -412,7 +551,7 @@ export default function ReservationsManagePage() {
               </h3>
               <p className="text-xs text-gray-500 mt-0.5">
                 {user
-                  ? `Showing reservations for ${user.email}. Enter a different email or phone to search.`
+                  ? `Showing reservations for ${user.email}. Search your bookings by phone, booking reference, or date.`
                   : "Search strictly by the email address or phone number used during table booking."}
               </p>
             </div>
@@ -761,9 +900,23 @@ export default function ReservationsManagePage() {
                   onChange={(e) => setEditDate(e.target.value)}
                   className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#EA580C]/20 focus:border-[#EA580C]"
                 />
+                {editDayInfo && (
+                  <div className="mt-1.5 p-2 rounded-lg bg-orange-50/70 border border-orange-200/80 text-[11px] flex items-center justify-between">
+                    <span className="font-semibold text-gray-800">
+                      Opening Hours ({editDayInfo.day_name}):
+                    </span>
+                    {editDayInfo.is_closed ? (
+                      <span className="text-red-600 font-bold uppercase">Closed</span>
+                    ) : (
+                      <span className="text-gray-700 font-medium">
+                        {formatTime12(editDayInfo.open_time)} – {formatTime12(editDayInfo.close_time)}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* Time (Evening slots) */}
+              {/* Time (Evening slots filtered by operating hours) */}
               <div>
                 <label
                   htmlFor="editTime"
@@ -771,19 +924,25 @@ export default function ReservationsManagePage() {
                 >
                   Time Slot (Evening from 5:30 PM)
                 </label>
-                <select
-                  id="editTime"
-                  required
-                  value={editTime}
-                  onChange={(e) => setEditTime(e.target.value)}
-                  className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#EA580C]/20 focus:border-[#EA580C]"
-                >
-                  {EVENING_TIMES.map((slot) => (
-                    <option key={slot.value} value={slot.value}>
-                      {slot.label}
-                    </option>
-                  ))}
-                </select>
+                {editDayInfo?.is_closed ? (
+                  <div className="p-2.5 bg-red-50 text-red-600 border border-red-200 rounded-lg text-xs font-semibold">
+                    The restaurant is closed on this day.
+                  </div>
+                ) : (
+                  <select
+                    id="editTime"
+                    required
+                    value={editTime}
+                    onChange={(e) => setEditTime(e.target.value)}
+                    className="w-full px-3.5 py-2.5 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#EA580C]/20 focus:border-[#EA580C]"
+                  >
+                    {editAvailableTimes.map((slot) => (
+                      <option key={slot.value} value={slot.value}>
+                        {slot.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               {/* Party Size */}

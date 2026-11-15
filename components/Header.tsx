@@ -90,7 +90,7 @@ export default function Header() {
             <Link href="/reservation" className={`${navLinkClass("/reservation")} whitespace-nowrap`}>
               Reservations
             </Link>
-            <Link href="/" className={`${navLinkClass("/")} whitespace-nowrap`}>
+            <Link href="/store-info" className={`${navLinkClass("/store-info")} whitespace-nowrap`}>
               Store Info
             </Link>
           </nav>

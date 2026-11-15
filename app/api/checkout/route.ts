@@ -3,7 +3,7 @@
 // That's important because we use the Stripe SECRET key here.
 
 import { NextRequest, NextResponse } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { stripe, isStripeConfigured } from "@/lib/stripe";
 import { supabase } from "@/lib/supabase";
 import {
   validatePromoForCheckout,
@@ -11,6 +11,16 @@ import {
 } from "@/lib/promo-checkout";
 
 export async function POST(request: NextRequest) {
+  if (!isStripeConfigured) {
+    return NextResponse.json(
+      {
+        error:
+          "Stripe card payments are not configured. Please add STRIPE_SECRET_KEY to your .env.local file.",
+      },
+      { status: 503 }
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -201,30 +211,41 @@ export async function POST(request: NextRequest) {
 
   // ---------- Ask Stripe to create a checkout session ----------
   // This creates a secure, hosted payment page on Stripe's own website.
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    line_items: lineItems,
-    customer_email: customerEmail,
-    phone_number_collection: { enabled: true },
-    // After payment, Stripe will send the customer back to our site.
-    // {CHECKOUT_SESSION_ID} gets replaced by Stripe with the real session id.
-    success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/order-confirmation?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/menu`,
-    // We attach the order type so we can read it back later,
-    // when Stripe tells us the payment succeeded.
-    metadata: {
-      orderType: orderType,
-      customerName,
-      customerPhone,
-      customerEmail,
-      subtotalBeforeDiscountCents: String(subtotalBeforeDiscountCents),
-      pickupTime,
-      tableNumber,
-      guestCount: guestCount ? String(guestCount) : "",
-      ...promoMetadata,
-    },
-  });
+  const origin =
+    request.headers.get("origin") ||
+    request.nextUrl.origin ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    "http://localhost:3000";
 
-  // Send the Stripe checkout page URL back to the browser.
-  return NextResponse.json({ url: session.url });
+  try {
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items: lineItems,
+      customer_email: customerEmail,
+      phone_number_collection: { enabled: true },
+      success_url: `${origin}/order-confirmation?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/menu`,
+      metadata: {
+        orderType: orderType,
+        customerName,
+        customerPhone,
+        customerEmail,
+        subtotalBeforeDiscountCents: String(subtotalBeforeDiscountCents),
+        pickupTime,
+        tableNumber,
+        guestCount: guestCount ? String(guestCount) : "",
+        ...promoMetadata,
+      },
+    });
+
+    // Send the Stripe checkout page URL back to the browser.
+    return NextResponse.json({ url: session.url });
+  } catch (stripeErr: unknown) {
+    console.error("Stripe Checkout Error:", stripeErr);
+    const message =
+      stripeErr instanceof Error
+        ? stripeErr.message
+        : "Failed to create Stripe payment session.";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
 }

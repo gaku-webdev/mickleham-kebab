@@ -4,6 +4,10 @@
 
 import Stripe from "stripe";
 
-// Create one Stripe client, using the secret key from .env.local.
-// The "!" tells TypeScript "trust me, this value will exist".
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const key = process.env.STRIPE_SECRET_KEY?.trim() || "";
+
+export const stripe = new Stripe(key || "sk_test_placeholder_key");
+
+export const isStripeConfigured = Boolean(
+  key && !key.includes("placeholder")
+);

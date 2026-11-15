@@ -37,6 +37,7 @@ type CartContextType = {
   setPromoCode: (value: string) => void;
   isCartOpen: boolean;
   setIsCartOpen: (value: boolean) => void;
+  clearCart: () => void;
 };
 
 // Create an empty "box" that will hold the cart.
@@ -94,6 +95,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
     );
   }
 
+  // Clear all items from the cart and reset promo
+  function clearCart() {
+    setItems([]);
+    setPromoCode("");
+  }
+
   // Add up the price of everything in the cart.
   const total = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
@@ -105,6 +112,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         addItem,
         removeItem,
         updateQuantity,
+        clearCart,
         total,
         // Share the order type values too, so any page can read/change them.
         orderType,

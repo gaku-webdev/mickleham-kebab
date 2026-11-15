@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import Loader from "@/components/Loader";
 import { useCart } from "@/context/CartContext";
+import { useAuth } from "@/lib/auth-context";
 
 type PromoQuote = {
   code: string;
@@ -84,9 +85,25 @@ export default function CheckoutPage() {
     setPromoCode,
   } = useCart();
 
+  const { user, profile } = useAuth();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+
+  useEffect(() => {
+    if (profile) {
+      setName((prev) => prev || profile.full_name || "");
+      setEmail((prev) => prev || profile.email || "");
+      if (profile.phone) setPhone((prev) => prev || profile.phone || "");
+    } else if (user) {
+      if (user.email) setEmail((prev) => prev || user.email || "");
+      const metaName =
+        (user.user_metadata?.full_name as string) ||
+        (user.user_metadata?.name as string) ||
+        "";
+      if (metaName) setName((prev) => prev || metaName);
+    }
+  }, [user, profile]);
   const [pickupTime, setPickupTime] = useState("As soon as possible (about 20 min)");
   const [promoQuote, setPromoQuote] = useState<PromoQuote | null>(null);
   const [promoError, setPromoError] = useState("");
@@ -163,6 +180,22 @@ export default function CheckoutPage() {
       return;
     }
 
+    if (!name.trim()) {
+      setCheckoutError("Please enter your name.");
+      return;
+    }
+    const cleanPhone = phone.trim().replace(/\D/g, "");
+    if (cleanPhone.length < 8) {
+      setCheckoutError(
+        "Please enter a valid phone number (at least 8 digits)."
+      );
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setCheckoutError("Please enter a valid email address.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const response = await fetch("/api/checkout", {
@@ -182,10 +215,20 @@ export default function CheckoutPage() {
           guestCount: orderType === "Dine-In" ? guestCount : null,
         }),
       });
-      const data = await response.json();
+
+      let data: { url?: string; error?: string } = {};
+      try {
+        const text = await response.text();
+        data = text ? JSON.parse(text) : {};
+      } catch {
+        data = {};
+      }
 
       if (!response.ok || !data.url) {
-        setCheckoutError(data.error ?? "Could not start checkout. Please try again.");
+        setCheckoutError(
+          data.error ??
+            `Could not start checkout (Status: ${response.status}). Please try again.`
+        );
         return;
       }
       window.location.assign(data.url);

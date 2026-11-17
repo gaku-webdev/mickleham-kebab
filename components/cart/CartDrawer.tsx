@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCart } from "@/context/CartContext";
 
 type Props = {
@@ -15,6 +15,50 @@ type PromoQuote = {
   discountCents: number;
   cartKey: string;
 };
+
+async function validatePromo(
+  code: string,
+  items: ReturnType<typeof useCart>["items"],
+  cartKey: string
+): Promise<{ quote: PromoQuote | null; error: string }> {
+  try {
+    const response = await fetch("/api/promos/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code,
+        items: items.map((item) => ({
+          menuItemId: item.menuItemId,
+          quantity: item.quantity,
+          displayName: item.name,
+        })),
+      }),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        quote: null,
+        error: data.error ?? "Could not apply this promo code.",
+      };
+    }
+
+    return {
+      quote: {
+        code: data.code,
+        eligibleSubtotalCents: data.eligibleSubtotalCents,
+        discountCents: data.discountCents,
+        cartKey,
+      },
+      error: "",
+    };
+  } catch {
+    return {
+      quote: null,
+      error: "Could not verify the promo code. Please try again.",
+    };
+  }
+}
 
 export default function CartDrawer({ isOpen, onClose }: Props) {
   const {
@@ -36,52 +80,51 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
   const [isApplyingPromo, setIsApplyingPromo] = useState(false);
   const itemCount = items.reduce((count, item) => count + item.quantity, 0);
 
-  if (!isOpen) return null;
-
   const cartKey = JSON.stringify(
     items.map((item) => [item.id, item.menuItemId, item.name, item.quantity])
   );
-  const quoteIsCurrent = promoQuote?.cartKey === cartKey;
+  const quoteIsCurrent =
+    promoQuote?.code === promoCode && promoQuote?.cartKey === cartKey;
+  const discountedTotal = Math.max(
+    0,
+    total - (quoteIsCurrent ? promoQuote.discountCents / 100 : 0)
+  );
+
+  useEffect(() => {
+    if (
+      !promoCode.trim() ||
+      items.length === 0 ||
+      promoQuote?.code !== promoCode ||
+      promoQuote.cartKey === cartKey
+    ) {
+      return;
+    }
+
+    let active = true;
+    void validatePromo(promoCode, items, cartKey).then(({ quote, error }) => {
+      if (!active) return;
+      setPromoQuote(quote);
+      setPromoError(error);
+      if (quote && promoCode !== quote.code) setPromoCode(quote.code);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [cartKey, items, promoCode, promoQuote, setPromoCode]);
+
+  if (!isOpen) return null;
 
   async function handleApplyPromo(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPromoError("");
     setIsApplyingPromo(true);
 
-    try {
-      const response = await fetch("/api/promos/validate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code: promoCode,
-          items: items.map((item) => ({
-            menuItemId: item.menuItemId,
-            quantity: item.quantity,
-            displayName: item.name,
-          })),
-        }),
-      });
-      const data = await response.json();
-
-      if (!response.ok) {
-        setPromoQuote(null);
-        setPromoError(data.error ?? "Could not apply this promo code.");
-        return;
-      }
-
-      setPromoCode(data.code);
-      setPromoQuote({
-        code: data.code,
-        eligibleSubtotalCents: data.eligibleSubtotalCents,
-        discountCents: data.discountCents,
-        cartKey,
-      });
-    } catch {
-      setPromoQuote(null);
-      setPromoError("Could not verify the promo code. Please try again.");
-    } finally {
-      setIsApplyingPromo(false);
-    }
+    const { quote, error } = await validatePromo(promoCode, items, cartKey);
+    setPromoQuote(quote);
+    setPromoError(error);
+    if (quote) setPromoCode(quote.code);
+    setIsApplyingPromo(false);
   }
 
   return (
@@ -225,7 +268,7 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
                 )}
                 {promoQuote && !quoteIsCurrent && (
                   <p role="status" className="mt-2 text-xs text-amber-700">
-                    Cart changed. Re-apply this code to refresh the discount.
+                    Cart changed. Updating the discount...
                   </p>
                 )}
               </form>
@@ -292,9 +335,17 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
 
         {items.length > 0 && (
           <div className="space-y-3 border-t border-[#EBE6DD] bg-white px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 shadow-[0_-8px_24px_rgba(41,35,31,0.06)]">
+            {quoteIsCurrent && promoQuote && (
+              <div className="flex items-center justify-between text-sm text-green-700">
+                <span>Discount</span>
+                <span className="tabular-nums">
+                  −${(promoQuote.discountCents / 100).toFixed(2)}
+                </span>
+              </div>
+            )}
             <div className="flex items-center justify-between font-bold">
               <span>Total</span>
-              <span className="tabular-nums">${total.toFixed(2)}</span>
+              <span className="tabular-nums">${discountedTotal.toFixed(2)}</span>
             </div>
             <Link
               href="/checkout"

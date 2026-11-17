@@ -1,28 +1,39 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/lib/auth-context";
 import CartDrawer from "./cart/CartDrawer";
+import MobileNav from "./MobileNav";
+import { NAV_LINKS, isActivePath } from "./nav-links";
+
+const MOBILE_NAV_ID = "mobile-nav";
 
 export default function Header() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const pathname = usePathname();
   const { items, total, isCartOpen, setIsCartOpen } = useCart();
   const { user, profile, isAdmin, signOut } = useAuth();
   const hasStaffAccess = profile?.role_id === 2 || profile?.role_id === 3;
   const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
-  const navLinkClass = (href: string) => {
-    const isActive =
-      href === "/" ? pathname === "/" : pathname.startsWith(href);
+  // Close menus whenever the page changes (e.g. browser back/forward).
+  const [lastPathname, setLastPathname] = useState(pathname);
+  if (pathname !== lastPathname) {
+    setLastPathname(pathname);
+    setIsMobileNavOpen(false);
+    setIsUserMenuOpen(false);
+  }
 
-    return isActive
+  const closeMobileNav = useCallback(() => setIsMobileNavOpen(false), []);
+
+  const navLinkClass = (href: string) =>
+    isActivePath(pathname, href)
       ? "font-semibold text-[#C2410C]"
       : "text-gray-700 transition-colors hover:text-[#C2410C]";
-  };
 
   const displayName =
     user?.user_metadata?.full_name ||
@@ -52,18 +63,22 @@ export default function Header() {
     );
   }
 
+  const dropdownItemClass =
+    "flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-orange-50 hover:text-orange-700 transition-colors";
+
   return (
     <>
-      <header className="w-full bg-[#FAF7F2] border-b border-[#EBE6DD] px-4 sm:px-8 py-3.5 sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
+      <header className="sticky top-0 z-40 w-full border-b border-[#EBE6DD] bg-[#FAF7F2] px-4 py-3.5 sm:px-8">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-full bg-[#EA580C] flex items-center justify-center text-white shadow-xs">
+          <Link href="/" className="flex shrink-0 items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#EA580C] text-white shadow-xs">
               <svg
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 24 24"
                 fill="currentColor"
-                className="w-5 h-5"
+                className="h-5 w-5"
+                aria-hidden="true"
               >
                 <path
                   fillRule="evenodd"
@@ -73,75 +88,74 @@ export default function Header() {
               </svg>
             </div>
             <div className="flex flex-col leading-tight">
-              <span className="font-extrabold text-sm sm:text-base tracking-wider text-[#1C1917]">
+              <span className="text-sm font-extrabold tracking-wider text-[#1C1917] sm:text-base">
                 MICKLEHAM
               </span>
-              <span className="font-bold text-[9px] sm:text-[10px] tracking-widest text-[#EA580C]">
+              <span className="text-[9px] font-bold tracking-widest text-[#EA580C] sm:text-[10px]">
                 KEBAB &amp; GRILL
               </span>
             </div>
           </Link>
 
-          {/* Nav Links */}
-          <nav className="hidden min-[700px]:flex shrink-0 items-center gap-3 xl:gap-6 text-xs xl:text-sm font-medium text-gray-700">
-
-            <Link href="/menu" className={`${navLinkClass("/menu")} whitespace-nowrap`}>
-              Menu
-            </Link>
-            <Link href="/reservation" className={`${navLinkClass("/reservation")} whitespace-nowrap`}>
-              Reservations
-            </Link>
-            <Link href="/store-info" className={`${navLinkClass("/store-info")} whitespace-nowrap`}>
-              Store Info
-            </Link>
+          {/* Desktop nav links */}
+          <nav
+            aria-label="Main"
+            className="hidden items-center gap-6 text-sm font-medium md:flex lg:gap-8"
+          >
+            {NAV_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`${navLinkClass(link.href)} whitespace-nowrap`}
+                aria-current={isActivePath(pathname, link.href) ? "page" : undefined}
+              >
+                {link.label}
+              </Link>
+            ))}
           </nav>
 
-          {/* Right Action Area */}
-          <div className="flex items-center gap-3">
-            <Link
-              href="/menu"
-              className="hidden shrink-0 whitespace-nowrap sm:inline-block bg-[#C2410C] hover:bg-[#9A3412] text-white px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-colors shadow-xs"
-            >
-              Order Now
-            </Link>
-
+          {/* Right action area */}
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Cart Button */}
             <button
               type="button"
               aria-label={`Open cart${itemCount > 0 ? ` with ${itemCount} items, $${total.toFixed(2)}` : ", empty"}`}
               aria-expanded={isCartOpen}
               onClick={() => setIsCartOpen(true)}
-              className={`flex min-h-11 items-center gap-2.5 rounded-xl border px-3 transition-colors ${
+              className={`flex min-h-11 items-center gap-2 rounded-xl border px-3 transition-colors ${
                 itemCount > 0
                   ? "border-[#C2410C] bg-[#C2410C] text-white shadow-sm hover:bg-[#9A3412]"
                   : "border-[#E7DED4] bg-white text-[#29231F] hover:border-[#C2410C]"
               }`}
             >
               <span aria-hidden="true" className="text-lg">🛒</span>
-              <span className="text-xs font-bold">Cart</span>
+              <span className="hidden text-xs font-bold sm:inline">Cart</span>
               <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[10px] font-extrabold text-[#C2410C]">
                 {itemCount}
               </span>
             </button>
 
-            {/* User Account / Auth Button */}
-            {user ? (
-              <div className="flex items-center gap-2">
+            {/* Desktop account area */}
+            <div className="hidden md:block">
+              {user ? (
                 <div className="relative">
                   <button
                     type="button"
                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                    className="flex items-center gap-2 border border-gray-200 bg-white hover:bg-gray-50 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold text-gray-800 transition-colors shadow-2xs cursor-pointer"
+                    aria-expanded={isUserMenuOpen}
+                    aria-haspopup="menu"
+                    className="flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 text-sm font-semibold text-gray-800 shadow-2xs transition-colors hover:bg-gray-50"
                   >
-                    <div className="w-5 h-5 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center text-[10px] font-extrabold uppercase">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-orange-100 text-[11px] font-extrabold uppercase text-orange-700">
                       {displayName.charAt(0)}
                     </div>
-                    <span className="max-w-[100px] truncate">{displayName}</span>
+                    <span className="max-w-[110px] truncate">{displayName}</span>
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className="w-3.5 h-3.5 text-gray-400"
+                      className="h-3.5 w-3.5 text-gray-400"
                       viewBox="0 0 20 20"
                       fill="currentColor"
+                      aria-hidden="true"
                     >
                       <path
                         fillRule="evenodd"
@@ -157,12 +171,12 @@ export default function Header() {
                         className="fixed inset-0 z-40"
                         onClick={() => setIsUserMenuOpen(false)}
                       />
-                      <div className="absolute right-0 mt-2 w-52 bg-white rounded-xl shadow-lg border border-gray-150 py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
-                        <div className="px-3.5 py-2 border-b border-gray-100">
-                          <p className="text-xs font-bold text-gray-900 truncate">
+                      <div className="absolute right-0 z-50 mt-2 w-56 rounded-xl border border-gray-150 bg-white py-1.5 shadow-lg animate-in fade-in zoom-in-95 duration-100">
+                        <div className="border-b border-gray-100 px-3.5 py-2">
+                          <p className="truncate text-xs font-bold text-gray-900">
                             {displayName}
                           </p>
-                          <p className="text-[11px] text-gray-500 truncate">
+                          <p className="truncate text-[11px] text-gray-500">
                             {user.email}
                           </p>
                         </div>
@@ -170,43 +184,56 @@ export default function Header() {
                         <Link
                           href="/orders"
                           onClick={() => setIsUserMenuOpen(false)}
-                          className="flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-orange-50 hover:text-orange-700 transition-colors"
+                          className={dropdownItemClass}
                         >
                           <span className="text-base">📦</span> My Orders
                         </Link>
-
                         <Link
                           href="/reservations"
                           onClick={() => setIsUserMenuOpen(false)}
-                          className="flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-orange-50 hover:text-orange-700 transition-colors"
+                          className={dropdownItemClass}
                         >
                           <span className="text-base">📅</span> My Reservations
                         </Link>
 
-                        <Link
-                          href="/reservation"
-                          onClick={() => setIsUserMenuOpen(false)}
-                          className="flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-gray-700 hover:bg-orange-50 hover:text-orange-700 transition-colors"
-                        >
-                          <span className="text-base">🍽️</span> Book a Table
-                        </Link>
+                        {hasStaffAccess && (
+                          <div className="mt-1 border-t border-gray-100 pt-1">
+                            <Link
+                              href="/staff"
+                              onClick={() => setIsUserMenuOpen(false)}
+                              className={dropdownItemClass}
+                            >
+                              <span className="text-base">🧑‍🍳</span> Staff board
+                            </Link>
+                            {isAdmin && (
+                              <Link
+                                href="/admin"
+                                onClick={() => setIsUserMenuOpen(false)}
+                                className={dropdownItemClass}
+                              >
+                                <span className="text-base">⚙️</span> Admin
+                              </Link>
+                            )}
+                          </div>
+                        )}
 
-                        <div className="border-t border-gray-100 mt-1 pt-1">
+                        <div className="mt-1 border-t border-gray-100 pt-1">
                           <button
                             type="button"
                             onClick={async () => {
                               setIsUserMenuOpen(false);
                               await signOut();
                             }}
-                            className="w-full text-left flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                            className="flex w-full cursor-pointer items-center gap-2 px-3.5 py-2 text-left text-xs font-medium text-red-600 transition-colors hover:bg-red-50"
                           >
                             <svg
                               xmlns="http://www.w3.org/2000/svg"
-                              className="w-4 h-4"
+                              className="h-4 w-4"
                               fill="none"
                               viewBox="0 0 24 24"
                               stroke="currentColor"
                               strokeWidth={2}
+                              aria-hidden="true"
                             >
                               <path
                                 strokeLinecap="round"
@@ -221,45 +248,56 @@ export default function Header() {
                     </>
                   )}
                 </div>
-                {hasStaffAccess && (
-                  <div className="flex items-center gap-2">
-                    <Link
-                      href="/staff"
-                      aria-label="Go to staff service board"
-                      className="px-3 py-1.5 border border-[#C2410C] bg-white text-[#C2410C] hover:bg-orange-50 rounded-lg text-xs sm:text-sm font-semibold transition-colors"
-                    >
-                      Staff
-                    </Link>
-                    {isAdmin && (
-                      <Link
-                        href="/admin"
-                        aria-label="Go to admin page"
-                        className="px-3 py-1.5 bg-[#C2410C] hover:bg-[#9A3412] text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors"
-                      >
-                        Admin
-                      </Link>
-                    )}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
+              ) : (
                 <Link
                   href="/login"
-                  className="whitespace-nowrap px-3 py-1.5 border border-gray-300 hover:border-gray-400 bg-white text-gray-800 rounded-lg text-xs sm:text-sm font-semibold transition-colors shadow-2xs"
+                  className="flex min-h-11 items-center whitespace-nowrap rounded-xl bg-[#1C1917] px-4 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-black"
                 >
-                  My Account
+                  Sign in
                 </Link>
-                <Link
-                  href="/register"
-                  className="hidden lg:inline-block px-3 py-1.5 bg-[#1C1917] hover:bg-black text-white rounded-lg text-xs sm:text-sm font-semibold transition-colors shadow-xs"
-                >
-                  Register
-                </Link>
-              </div>
-            )}
+              )}
+            </div>
+
+            {/* Mobile hamburger */}
+            <button
+              type="button"
+              onClick={() => setIsMobileNavOpen((open) => !open)}
+              aria-expanded={isMobileNavOpen}
+              aria-controls={MOBILE_NAV_ID}
+              aria-label={isMobileNavOpen ? "Close menu" : "Open menu"}
+              className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#E7DED4] bg-white text-[#1C1917] transition-colors hover:border-[#C2410C] md:hidden"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+                aria-hidden="true"
+              >
+                {isMobileNavOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 7h16M4 12h16M4 17h16" />
+                )}
+              </svg>
+            </button>
           </div>
         </div>
+
+        <MobileNav
+          id={MOBILE_NAV_ID}
+          isOpen={isMobileNavOpen}
+          onClose={closeMobileNav}
+          pathname={pathname}
+          isSignedIn={Boolean(user)}
+          displayName={displayName}
+          email={user?.email}
+          hasStaffAccess={hasStaffAccess}
+          isAdmin={isAdmin}
+          onSignOut={signOut}
+        />
       </header>
       <CartDrawer isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </>

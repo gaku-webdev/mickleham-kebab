@@ -703,7 +703,7 @@ export default function ManageMenuPage() {
                         size="sm"
                         label="Saving..."
                         inline
-                        className="text-white"
+                        tone="inverse"
                       />
                     )
                   : editingId
@@ -834,7 +834,6 @@ export default function ManageMenuPage() {
                                             size="sm"
                                             label="Removing..."
                                             inline
-                                            className="text-white"
                                           />
                                         )
                                       : "Remove"}

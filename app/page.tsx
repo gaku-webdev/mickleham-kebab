@@ -11,6 +11,7 @@ import {
   getMelbourneDateParts,
 } from "@/lib/date-time";
 import Footer from "@/components/Footer";
+import Skeleton from "@/components/Skeleton";
 
 // One row from the Supabase "operating_hours" table.
 interface OperatingHour {
@@ -81,27 +82,36 @@ export default function Home() {
     let active = true;
 
     async function loadPromos() {
-      const { data, error } = await supabase
-        .from("promos")
-        .select(
-          "id, title, description, code, discount_type, discount_value, is_active, starts_at, expires_at, applies_to_all, category_ids, menu_item_ids, active_days, daily_start_time, daily_end_time, schedule_timezone"
-        )
-        .eq("is_active", true)
-        .order("starts_at", { ascending: true });
-
-      if (!active) return;
-
-      if (error) {
-        setPromoError(true);
-      } else {
-        // isPromoCurrentlyActive() also checks date/time ranges, not just is_active.
-        setPromos(
-          ((data ?? []) as Promo[]).filter((promo) =>
-            isPromoCurrentlyActive(promo)
+      try {
+        const { data, error } = await supabase
+          .from("promos")
+          .select(
+            "id, title, description, code, discount_type, discount_value, is_active, starts_at, expires_at, applies_to_all, category_ids, menu_item_ids, active_days, daily_start_time, daily_end_time, schedule_timezone"
           )
-        );
+          .eq("is_active", true)
+          .order("starts_at", { ascending: true });
+
+        if (!active) return;
+
+        if (error) {
+          console.error("Failed to load promotions:", error);
+          setPromoError(true);
+        } else {
+          // isPromoCurrentlyActive() also checks date/time ranges, not just is_active.
+          setPromos(
+            ((data ?? []) as Promo[]).filter((promo) =>
+              isPromoCurrentlyActive(promo)
+            )
+          );
+        }
+      } catch (error) {
+        if (active) {
+          console.error("Failed to load promotions:", error);
+          setPromoError(true);
+        }
+      } finally {
+        if (active) setPromosLoading(false);
       }
-      setPromosLoading(false);
     }
 
     async function loadOperatingHours() {
@@ -162,8 +172,17 @@ export default function Home() {
           <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[1.1fr_1fr] lg:items-center lg:gap-14">
             <div>
               {/* Fixed height so the heading doesn't jump when hours load */}
-              <div className="mb-5 h-7">
-                {!hoursLoading && (
+              <div className="mb-5 flex h-7 items-center">
+                {hoursLoading ? (
+                  <div
+                    role="status"
+                    aria-label="Loading opening status"
+                    aria-busy="true"
+                  >
+                    <Skeleton className="h-7 w-48 rounded-full" />
+                    <span className="sr-only">Loading opening status...</span>
+                  </div>
+                ) : (
                   <p className="inline-flex items-center gap-2 rounded-full border border-[#EBE6DD] bg-white px-3 py-1 text-xs font-semibold">
                     <span
                       className={`h-2 w-2 rounded-full ${
@@ -250,15 +269,21 @@ export default function Home() {
 
             {promosLoading ? (
               <div
+                role="status"
                 className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
                 aria-busy="true"
                 aria-label="Loading promotions"
               >
-                {[0, 1, 2].map((i) => (
-                  <div
-                    key={i}
-                    className="h-56 animate-pulse rounded-2xl bg-[#EFE7DB]"
-                  />
+                {[0, 1, 2].map((index) => (
+                  <article
+                    key={index}
+                    className="flex min-h-56 flex-col gap-4 rounded-2xl border border-[#EBE6DD] bg-white p-5"
+                  >
+                    <Skeleton tone="warm" className="h-5 w-2/3" />
+                    <Skeleton tone="warm" className="h-3 w-full" />
+                    <Skeleton tone="warm" className="h-3 w-4/5" />
+                    <Skeleton tone="warm" className="mt-auto h-10 w-28 rounded-lg" />
+                  </article>
                 ))}
               </div>
             ) : promoError ? (

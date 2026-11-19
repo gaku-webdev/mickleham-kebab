@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import Loader from "@/components/Loader";
+import Skeleton from "@/components/Skeleton";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/lib/auth-context";
 
@@ -499,7 +500,6 @@ export default function CheckoutPage() {
                       size="sm"
                       label="Applying..."
                       inline
-                      className="text-[#C2410C]"
                     />
                   ) : (
                     "Apply"
@@ -525,20 +525,31 @@ export default function CheckoutPage() {
               )}
             </div>
 
-            <div className="mt-4 space-y-2 border-t border-[#EEE6DD] pt-3 text-sm">
+            <div
+              aria-busy={isApplyingPromo}
+              className="mt-4 space-y-2 border-t border-[#EEE6DD] pt-3 text-sm"
+            >
               <div className="flex justify-between text-[#74685E]">
                 <span>Subtotal</span>
                 <span>${total.toFixed(2)}</span>
               </div>
-              {quoteIsCurrent && promoQuote && (
+              {(quoteIsCurrent && promoQuote) || isApplyingPromo ? (
                 <div className="flex justify-between text-green-700">
                   <span>Discount</span>
-                  <span>−${(discountCents / 100).toFixed(2)}</span>
+                  {isApplyingPromo ? (
+                    <Skeleton className="h-4 w-16" />
+                  ) : (
+                    <span>−${(discountCents / 100).toFixed(2)}</span>
+                  )}
                 </div>
-              )}
+              ) : null}
               <div className="flex justify-between text-lg font-extrabold">
                 <span>Total</span>
-                <span>${finalTotal.toFixed(2)}</span>
+                {isApplyingPromo ? (
+                  <Skeleton className="h-6 w-20" />
+                ) : (
+                  <span>${finalTotal.toFixed(2)}</span>
+                )}
               </div>
             </div>
 
@@ -553,7 +564,7 @@ export default function CheckoutPage() {
                       size="sm"
                       label="Redirecting to secure payment..."
                       inline
-                      className="text-white"
+                      tone="inverse"
                     />
                   )
                 : `Place order · $${finalTotal.toFixed(2)}`}

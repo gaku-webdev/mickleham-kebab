@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import Loader from "@/components/Loader";
+import Skeleton from "@/components/Skeleton";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import { formatMelbourneDateTime } from "@/lib/date-time";
@@ -353,7 +354,7 @@ export default function OrdersPage() {
                       size="sm"
                       label="Searching..."
                       inline
-                      className="text-white"
+                      tone="inverse"
                     />
                   ) : (
                     "Search"
@@ -393,8 +394,28 @@ export default function OrdersPage() {
 
         {/* Loading state */}
         {ordersLoading && (
-          <div className="py-16 text-center">
-            <Loader label="Searching orders..." />
+          <div
+            role="status"
+            aria-label="Loading orders"
+            aria-busy="true"
+            className="space-y-5 py-6"
+          >
+            {[0, 1, 2].map((index) => (
+              <article
+                key={index}
+                className="overflow-hidden rounded-2xl border border-[#EBE6DD] bg-white"
+              >
+                <div className="flex items-center justify-between border-b border-[#EBE6DD] bg-[#FAF7F2] px-5 py-4">
+                  <Skeleton className="h-4 w-36" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+                <div className="space-y-3 p-5">
+                  <Skeleton className="h-3 w-2/3" />
+                  <Skeleton className="h-3 w-1/2" />
+                </div>
+              </article>
+            ))}
+            <p className="sr-only">Searching orders...</p>
           </div>
         )}
 

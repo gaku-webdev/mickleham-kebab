@@ -78,6 +78,7 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
   const [promoQuote, setPromoQuote] = useState<PromoQuote | null>(null);
   const [promoError, setPromoError] = useState("");
   const [isApplyingPromo, setIsApplyingPromo] = useState(false);
+  const [isCheckingPromo, setIsCheckingPromo] = useState(false);
   const itemCount = items.reduce((count, item) => count + item.quantity, 0);
 
   const cartKey = JSON.stringify(
@@ -101,11 +102,15 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
     }
 
     let active = true;
+    queueMicrotask(() => {
+      if (active) setIsCheckingPromo(true);
+    });
     void validatePromo(promoCode, items, cartKey).then(({ quote, error }) => {
       if (!active) return;
       setPromoQuote(quote);
       setPromoError(error);
       if (quote && promoCode !== quote.code) setPromoCode(quote.code);
+      setIsCheckingPromo(false);
     });
 
     return () => {
@@ -119,12 +124,14 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
     event.preventDefault();
     setPromoError("");
     setIsApplyingPromo(true);
+    setIsCheckingPromo(true);
 
     const { quote, error } = await validatePromo(promoCode, items, cartKey);
     setPromoQuote(quote);
     setPromoError(error);
     if (quote) setPromoCode(quote.code);
     setIsApplyingPromo(false);
+    setIsCheckingPromo(false);
   }
 
   return (
@@ -250,27 +257,42 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
                   <button
                     type="submit"
                     disabled={isApplyingPromo || !promoCode.trim()}
+                    aria-busy={isApplyingPromo}
                     className="min-h-10 rounded-lg border border-orange-200 px-3 text-sm font-bold text-[#C2410C] transition hover:bg-orange-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-orange-100 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {isApplyingPromo ? "Checking..." : "Apply"}
                   </button>
                 </div>
-                {promoError && (
+                {isCheckingPromo ? (
+                  <div
+                    role="status"
+                    aria-label="Checking promo code"
+                    className="mt-2 flex items-center justify-between"
+                  >
+                    <div
+                      aria-hidden="true"
+                      className="h-3 w-28 animate-pulse rounded-full bg-stone-200 motion-reduce:animate-none"
+                    />
+                    <div
+                      aria-hidden="true"
+                      className="h-3 w-16 animate-pulse rounded-full bg-stone-200 motion-reduce:animate-none"
+                    />
+                    <span className="sr-only">Checking promo code...</span>
+                  </div>
+                ) : promoError ? (
                   <p role="alert" className="mt-2 text-xs text-red-700">
                     {promoError}
                   </p>
-                )}
-                {promoQuote && quoteIsCurrent && (
+                ) : promoQuote && quoteIsCurrent ? (
                   <p className="mt-2 text-xs text-green-700">
                     {promoQuote.code} applied · $
                     {(promoQuote.discountCents / 100).toFixed(2)} off
                   </p>
-                )}
-                {promoQuote && !quoteIsCurrent && (
+                ) : promoQuote && !quoteIsCurrent ? (
                   <p role="status" className="mt-2 text-xs text-amber-700">
                     Cart changed. Updating the discount...
                   </p>
-                )}
+                ) : null}
               </form>
 
               <div>
@@ -335,17 +357,35 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
 
         {items.length > 0 && (
           <div className="space-y-3 border-t border-[#EBE6DD] bg-white px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 shadow-[0_-8px_24px_rgba(41,35,31,0.06)]">
-            {quoteIsCurrent && promoQuote && (
+            {isCheckingPromo ? (
+              <div role="status" aria-label="Updating cart totals">
+                <div className="flex items-center justify-between text-sm text-green-700">
+                  <span>Discount</span>
+                  <span
+                    aria-hidden="true"
+                    className="h-4 w-16 animate-pulse rounded-full bg-stone-200 motion-reduce:animate-none"
+                  />
+                </div>
+                <span className="sr-only">Updating cart totals...</span>
+              </div>
+            ) : quoteIsCurrent && promoQuote ? (
               <div className="flex items-center justify-between text-sm text-green-700">
                 <span>Discount</span>
                 <span className="tabular-nums">
                   −${(promoQuote.discountCents / 100).toFixed(2)}
                 </span>
               </div>
-            )}
+            ) : null}
             <div className="flex items-center justify-between font-bold">
               <span>Total</span>
-              <span className="tabular-nums">${discountedTotal.toFixed(2)}</span>
+              {isCheckingPromo ? (
+                <span
+                  aria-hidden="true"
+                  className="h-5 w-20 animate-pulse rounded-full bg-stone-200 motion-reduce:animate-none"
+                />
+              ) : (
+                <span className="tabular-nums">${discountedTotal.toFixed(2)}</span>
+              )}
             </div>
             <Link
               href="/checkout"

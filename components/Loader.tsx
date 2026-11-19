@@ -1,34 +1,46 @@
+import Skeleton from "./Skeleton";
+
 type LoaderProps = {
   label?: string;
   size?: "sm" | "md";
   inline?: boolean;
-  className?: string;
+  tone?: "default" | "inverse";
 };
 
 export default function Loader({
   label = "Loading...",
   size = "md",
   inline = false,
-  className = "",
+  tone = "default",
 }: LoaderProps) {
   return (
     <div
       role="status"
       aria-live="polite"
-      className={`${inline ? "inline-flex flex-row" : "flex flex-col"} items-center justify-center gap-2 text-[#C2410C] ${className}`}
+      aria-label={label}
+      aria-busy="true"
+      className={`${inline ? "inline-flex flex-row" : "flex w-full flex-col"} items-center justify-center gap-2`}
     >
-      <span
-        className={`newtons-cradle ${size === "sm" ? "newtons-cradle--small" : ""}`}
-        aria-hidden="true"
-      >
-        <span className="newtons-cradle__dot" />
-        <span className="newtons-cradle__dot" />
-        <span className="newtons-cradle__dot" />
-        <span className="newtons-cradle__dot" />
-      </span>
-      <span className={inline ? "text-xs font-semibold" : "text-sm font-medium"}>
-        {label}
-      </span>
+      {inline ? (
+        <Skeleton
+          tone={tone}
+          className={size === "sm" ? "h-3 w-16" : "h-4 w-24"}
+        />
+      ) : (
+        <div
+          className={`w-full ${
+            size === "sm" ? "max-w-xs space-y-3" : "max-w-md space-y-4"
+          }`}
+        >
+          <Skeleton
+            className={size === "sm" ? "mx-auto h-4 w-2/5" : "h-6 w-2/3"}
+          />
+          <Skeleton className="h-3 w-full" />
+          <Skeleton className="h-3 w-4/5" />
+          {size === "md" && <Skeleton className="h-24 w-full rounded-xl" />}
+        </div>
+      )}
+      <span className="sr-only">{label}</span>
     </div>
   );
 }

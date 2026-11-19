@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { formatClockTime, getMelbourneDateParts } from "@/lib/date-time";
+import Skeleton from "@/components/Skeleton";
 
 interface OperatingHour {
   day_of_week: number;
@@ -13,7 +14,8 @@ interface OperatingHour {
 }
 
 export default function Footer() {
-  const [todayText, setTodayText] = useState<string>("Loading hours...");
+  const [todayText, setTodayText] = useState("");
+  const [hoursLoading, setHoursLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
@@ -24,27 +26,39 @@ export default function Footer() {
         Date.UTC(parts.year, parts.month - 1, parts.day)
       ).getUTCDay();
 
-      const { data, error } = await supabase
-        .from("operating_hours")
-        .select("day_of_week, open_time, close_time, is_closed")
-        .eq("day_of_week", dayOfWeek)
-        .maybeSingle();
+      try {
+        const { data, error } = await supabase
+          .from("operating_hours")
+          .select("day_of_week, open_time, close_time, is_closed")
+          .eq("day_of_week", dayOfWeek)
+          .maybeSingle();
 
-      if (!active) return;
+        if (!active) return;
+        if (error) {
+          console.error("Failed to load today's operating hours:", error);
+          setTodayText("Hours unavailable");
+          return;
+        }
 
-      const row = (data ?? null) as OperatingHour | null;
-      const isThuFriSat = dayOfWeek === 4 || dayOfWeek === 5 || dayOfWeek === 6;
-      const openTime = row?.open_time ?? "10:00:00";
-      const closeTime =
-        row?.close_time ?? (isThuFriSat ? "23:45:00" : "22:30:00");
-      const closed = row ? row.is_closed : false;
+        const row = (data ?? null) as OperatingHour | null;
+        const isThuFriSat =
+          dayOfWeek === 4 || dayOfWeek === 5 || dayOfWeek === 6;
+        const openTime = row?.open_time ?? "10:00:00";
+        const closeTime =
+          row?.close_time ?? (isThuFriSat ? "23:45:00" : "22:30:00");
+        const closed = row ? row.is_closed : false;
 
-      if (!error) {
         setTodayText(
           closed
             ? "Closed today"
             : `Today: ${formatClockTime(openTime)} – ${formatClockTime(closeTime)}`
         );
+      } catch (error) {
+        if (!active) return;
+        console.error("Failed to load today's operating hours:", error);
+        setTodayText("Hours unavailable");
+      } finally {
+        if (active) setHoursLoading(false);
       }
     }
 
@@ -68,7 +82,14 @@ export default function Footer() {
           >
             (03) 9453 9778
           </a>
-          <p className="mt-1 text-sm">{todayText}</p>
+          {hoursLoading ? (
+            <div role="status" aria-label="Loading today's hours" aria-busy="true">
+              <Skeleton tone="inverse" className="mt-2 h-4 w-56" />
+              <span className="sr-only">Loading today&apos;s hours...</span>
+            </div>
+          ) : (
+            <p className="mt-1 text-sm">{todayText}</p>
+          )}
         </div>
 
         <div className="flex flex-col gap-2 text-sm sm:items-end">

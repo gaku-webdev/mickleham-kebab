@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import Loader from "@/components/Loader";
+import Skeleton from "@/components/Skeleton";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import {
@@ -609,8 +610,29 @@ export default function ReservationsManagePage() {
 
         {/* Loading state */}
         {loading && (
-          <div className="py-16 text-center">
-            <Loader label="Looking up reservations..." />
+          <div
+            role="status"
+            aria-label="Loading reservations"
+            aria-busy="true"
+            className="space-y-5 py-6"
+          >
+            {[0, 1, 2].map((index) => (
+              <article
+                key={index}
+                className="overflow-hidden rounded-2xl border border-[#EBE6DD] bg-white"
+              >
+                <div className="flex items-center justify-between border-b border-[#EBE6DD] bg-[#FAF7F2] px-5 py-4">
+                  <Skeleton className="h-4 w-36" />
+                  <Skeleton className="h-4 w-20" />
+                </div>
+                <div className="space-y-3 p-5">
+                  <Skeleton className="h-3 w-2/3" />
+                  <Skeleton className="h-3 w-1/2" />
+                  <Skeleton className="h-10 w-32 rounded-lg" />
+                </div>
+              </article>
+            ))}
+            <p className="sr-only">Looking up reservations...</p>
           </div>
         )}
 
@@ -1004,7 +1026,7 @@ export default function ReservationsManagePage() {
                       size="sm"
                       label="Saving..."
                       inline
-                      className="text-white"
+                      tone="inverse"
                     />
                   ) : (
                     "Save Changes"

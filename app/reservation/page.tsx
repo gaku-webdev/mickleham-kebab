@@ -1057,7 +1057,7 @@ export default function ReservationPage() {
                     size="sm"
                     label="Confirming..."
                     inline
-                    className="text-white"
+                    tone="inverse"
                   />
                 ) : (
                   "CONFIRM BOOKING"

@@ -134,7 +134,7 @@ export default function LoginPage() {
                 size="sm"
                 label="Signing In..."
                 inline
-                className="text-white"
+                tone="inverse"
               />
             ) : (
               "Sign In"

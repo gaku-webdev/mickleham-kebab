@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import Loader from "@/components/Loader";
+import Skeleton from "@/components/Skeleton";
 import { useCart } from "@/context/CartContext";
 import { formatMelbourneDateTime } from "@/lib/date-time";
 
@@ -34,6 +34,35 @@ interface Order {
   guest_count?: number | null;
   notes?: string | null;
   created_at: string;
+}
+
+function OrderConfirmationSkeleton() {
+  return (
+    <main
+      aria-label="Loading order confirmation"
+      aria-busy="true"
+      className="flex min-h-[70vh] flex-col items-center justify-center p-6"
+    >
+      <div className="w-full max-w-lg rounded-2xl border border-[#EBE6DD] bg-white p-6 shadow-sm">
+        <div className="flex flex-col items-center gap-3 border-b border-[#EBE6DD] pb-5">
+          <Skeleton className="h-12 w-12 rounded-full" />
+          <Skeleton className="h-6 w-56" />
+          <Skeleton className="h-4 w-72 max-w-full" />
+        </div>
+        <div className="space-y-4 py-5">
+          <Skeleton className="h-4 w-1/3" />
+          <Skeleton className="h-16 w-full rounded-xl" />
+          <Skeleton className="h-4 w-1/2" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-4/5" />
+        </div>
+        <Skeleton className="h-11 w-full rounded-lg" />
+      </div>
+      <p role="status" className="sr-only">
+        Confirming your order...
+      </p>
+    </main>
+  );
 }
 
 function OrderConfirmationContent() {
@@ -112,17 +141,7 @@ function OrderConfirmationContent() {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center">
-        <Loader />
-        <h2 className="mt-4 text-xl font-semibold text-[#1C1917]">
-          Confirming your order...
-        </h2>
-        <p className="mt-1 text-sm text-[#78716C]">
-          Please wait while we finalize your payment and notify the kitchen.
-        </p>
-      </div>
-    );
+    return <OrderConfirmationSkeleton />;
   }
 
   if (errorMessage || !order) {
@@ -445,14 +464,7 @@ function OrderConfirmationContent() {
 export default function OrderConfirmationPage() {
   return (
     <Suspense
-      fallback={
-        <div className="min-h-[70vh] flex flex-col items-center justify-center p-6 text-center">
-          <Loader />
-          <h2 className="mt-4 text-xl font-semibold text-[#1C1917]">
-            Loading your order confirmation...
-          </h2>
-        </div>
-      }
+      fallback={<OrderConfirmationSkeleton />}
     >
       <OrderConfirmationContent />
     </Suspense>

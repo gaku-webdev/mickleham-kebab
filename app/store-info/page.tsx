@@ -13,6 +13,7 @@ import {
   formatClockTime,
   getMelbourneDateParts,
 } from "@/lib/date-time";
+import Skeleton from "@/components/Skeleton";
 
 export interface OperatingHour {
   id: number;
@@ -330,8 +331,41 @@ export default function StoreInfoPage() {
               </div>
 
               {hoursLoading ? (
-                <div className="py-8 text-center text-xs text-gray-500">
-                  Loading operating hours...
+                <div
+                  role="status"
+                  aria-label="Loading operating hours"
+                  aria-busy="true"
+                  className="overflow-hidden rounded-xl border border-gray-300 shadow-2xs"
+                >
+                  <table className="w-full border-collapse text-left text-xs">
+                    <thead className="bg-[#4B5563] text-[11px] font-bold uppercase tracking-wider text-white">
+                      <tr>
+                        <th className="border-r border-gray-500/50 px-3 py-2.5">
+                          Day
+                        </th>
+                        <th className="border-r border-gray-500/50 px-3 py-2.5 text-center">
+                          Pickup
+                        </th>
+                        <th className="px-3 py-2.5 text-center">Delivery</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 bg-white">
+                      {Array.from({ length: 7 }, (_, index) => (
+                        <tr key={index}>
+                          <td className="px-3 py-3">
+                            <Skeleton className="h-3 w-16" />
+                          </td>
+                          <td className="px-3 py-3">
+                            <Skeleton className="mx-auto h-3 w-20" />
+                          </td>
+                          <td className="px-3 py-3">
+                            <Skeleton className="mx-auto h-3 w-20" />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <p className="sr-only">Loading operating hours...</p>
                 </div>
               ) : (
                 <div className="overflow-hidden rounded-xl border border-gray-300 shadow-2xs">

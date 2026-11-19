@@ -806,7 +806,7 @@ export default function ManagePromosPage() {
                     size="sm"
                     label="Saving..."
                     inline
-                    className="text-white"
+                    tone="inverse"
                   />
                 ) : editingId ? (
                   "Save changes"
@@ -909,7 +909,6 @@ export default function ManagePromosPage() {
                             size="sm"
                             label="Deleting..."
                             inline
-                            className="text-white"
                           />
                         ) : (
                           "Delete"

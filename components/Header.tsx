@@ -2,9 +2,11 @@
 
 import { useCallback, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { useAuth } from "@/lib/auth-context";
+import brandLogo from "../assets/img/logo/logo.jpg";
 import CartDrawer from "./cart/CartDrawer";
 import MobileNav from "./MobileNav";
 import { NAV_LINKS, isActivePath } from "./nav-links";
@@ -32,8 +34,8 @@ export default function Header() {
 
   const navLinkClass = (href: string) =>
     isActivePath(pathname, href)
-      ? "font-semibold text-[#C2410C]"
-      : "text-gray-700 transition-colors hover:text-[#C2410C]";
+      ? "font-semibold text-[#8F482F]"
+      : "text-[#514C44] transition-colors hover:text-[#8F482F]";
 
   const displayName =
     user?.user_metadata?.full_name ||
@@ -42,19 +44,25 @@ export default function Header() {
 
   if (pathname === "/checkout") {
     return (
-      <header className="sticky top-0 z-40 w-full border-b border-[#EBE6DD] bg-white px-4 py-3.5 sm:px-8">
-        <div className="mx-auto flex max-w-6xl items-center justify-between">
-          <Link href="/" className="flex items-center gap-2.5">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#C2410C] text-[10px] font-extrabold text-white">
-              MK
-            </span>
-            <span className="text-sm font-extrabold text-[#29231F]">
-              Mickleham Kebab &amp; Grill
-            </span>
+      <header className="sticky top-0 z-40 w-full border-b border-[#DED7CA] bg-[#F8F6F0] px-4 py-3.5 sm:px-8">
+        <div className="mx-auto flex max-w-7xl items-center justify-between">
+          <Link
+            href="/"
+            aria-label="Mickleham Kebab & Grill home"
+            className="flex items-center"
+          >
+            <Image
+              src={brandLogo}
+              alt=""
+              width={133}
+              height={83}
+              priority
+              className="h-16 w-auto object-contain sm:h-[4.5rem]"
+            />
           </Link>
           <Link
             href="/menu"
-            className="text-xs font-semibold text-[#C2410C] hover:text-[#9A3412] sm:text-sm"
+            className="text-xs font-semibold text-[#8F482F] hover:text-[#29261F] sm:text-sm"
           >
             ← Back to menu
           </Link>
@@ -68,39 +76,28 @@ export default function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full border-b border-[#EBE6DD] bg-[#FAF7F2] px-4 py-3.5 sm:px-8">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
+      <header className="sticky top-0 z-40 w-full border-b border-[#DED7CA] bg-[#F8F6F0] px-4 py-3.5 sm:px-8">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
           {/* Logo */}
-          <Link href="/" className="flex shrink-0 items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#EA580C] text-white shadow-xs">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                className="h-5 w-5"
-                aria-hidden="true"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M12.963 2.286a.75.75 0 0 0-1.071-.136 9.742 9.742 0 0 0-3.539 6.177 7.547 7.547 0 0 1-1.705-1.715.75.75 0 0 0-1.152-.082A9 9 0 1 0 15.68 4.534a7.46 7.46 0 0 1-2.717-2.248ZM15.75 14.25a3.75 3.75 0 1 1-7.313-1.172c.628.465 1.35.81 2.133 1a5.99 5.99 0 0 1 1.925-3.546 3.75 3.75 0 0 1 3.255 3.718Z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </div>
-            <div className="flex flex-col leading-tight">
-              <span className="text-sm font-extrabold tracking-wider text-[#1C1917] sm:text-base">
-                MICKLEHAM
-              </span>
-              <span className="text-[9px] font-bold tracking-widest text-[#EA580C] sm:text-[10px]">
-                KEBAB &amp; GRILL
-              </span>
-            </div>
+          <Link
+            href="/"
+            aria-label="Mickleham Kebab & Grill home"
+            className="flex shrink-0 items-center"
+          >
+            <Image
+              src={brandLogo}
+              alt=""
+              width={133}
+              height={83}
+              priority
+              className="h-16 w-auto object-contain sm:h-[4.5rem]"
+            />
           </Link>
 
           {/* Desktop nav links */}
           <nav
             aria-label="Main"
-            className="hidden items-center gap-6 text-sm font-medium md:flex lg:gap-8"
+            className="hidden items-center gap-5 text-[10px] font-semibold uppercase tracking-[0.13em] md:flex lg:gap-7"
           >
             {NAV_LINKS.map((link) => (
               <Link
@@ -122,7 +119,7 @@ export default function Header() {
               aria-label={`Open cart${itemCount > 0 ? ` with ${itemCount} items, $${total.toFixed(2)}` : ", empty"}`}
               aria-expanded={isCartOpen}
               onClick={() => setIsCartOpen(true)}
-              className={`flex min-h-11 items-center gap-2 rounded-xl border px-3 transition-colors ${
+              className={`flex min-h-11 items-center gap-2 border px-3 transition-colors ${
                 itemCount > 0
                   ? "border-[#C2410C] bg-[#C2410C] text-white shadow-sm hover:bg-[#9A3412]"
                   : "border-[#E7DED4] bg-white text-[#29231F] hover:border-[#C2410C]"
@@ -251,7 +248,7 @@ export default function Header() {
               ) : (
                 <Link
                   href="/login"
-                  className="flex min-h-11 items-center whitespace-nowrap rounded-xl bg-[#1C1917] px-4 text-sm font-semibold text-white shadow-xs transition-colors hover:bg-black"
+                  className="flex min-h-11 items-center whitespace-nowrap bg-[#29261F] px-4 text-[10px] font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-[#8F482F]"
                 >
                   Sign in
                 </Link>

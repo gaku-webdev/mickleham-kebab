@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
+import { useDialogFocus } from "@/components/useDialogFocus";
 
 export type MenuOptionGroup = {
   id: string;
@@ -49,6 +50,7 @@ function formatAdjustment(amount: number) {
 
 export default function ItemCustomizeModal({ item, onClose }: Props) {
   const { addItem } = useCart();
+  const dialogRef = useDialogFocus<HTMLElement>(true, onClose);
   const [selectedByGroup, setSelectedByGroup] = useState<
     Record<string, string[]>
   >({});
@@ -117,25 +119,31 @@ export default function ItemCustomizeModal({ item, onClose }: Props) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center bg-stone-950/60 p-0 backdrop-blur-sm sm:items-center sm:p-5"
-      onClick={onClose}
     >
+      <button
+        type="button"
+        aria-label="Close customization"
+        className="absolute inset-0"
+        onClick={onClose}
+      />
       <section
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="customize-item-title"
-        className="flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl"
-        onClick={(event) => event.stopPropagation()}
+        tabIndex={-1}
+        className="relative z-10 flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden border border-[#DED7CA] bg-[#F8F6F0] shadow-2xl"
       >
-        <div className="shrink-0 border-b border-stone-100 px-5 pb-5 pt-4 sm:px-7 sm:pt-6">
+        <div className="shrink-0 border-b border-[#DED7CA] px-5 pb-5 pt-4 sm:px-7 sm:pt-6">
           <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-stone-200 sm:hidden" />
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-orange-700">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8F482F]">
                 {item.category}
               </p>
               <h2
                 id="customize-item-title"
-                className="mt-1 text-2xl font-extrabold tracking-tight text-stone-900"
+                className="mt-1 text-3xl tracking-tight text-stone-900"
               >
                 {item.name}
               </h2>
@@ -172,7 +180,7 @@ export default function ItemCustomizeModal({ item, onClose }: Props) {
                 className="mb-6 last:mb-0"
                 disabled={group.choices.length === 0}
               >
-                <legend className="text-sm font-bold text-stone-900">
+                <legend className="font-serif text-lg text-stone-900">
                   {group.name}
                 </legend>
                 <p className="mb-3 mt-1 text-xs text-stone-500">
@@ -190,10 +198,10 @@ export default function ItemCustomizeModal({ item, onClose }: Props) {
                       return (
                         <label
                           key={choice.id}
-                          className={`flex min-h-12 cursor-pointer items-center justify-between gap-4 rounded-xl border px-4 py-3 transition ${
+                          className={`flex min-h-12 cursor-pointer items-center justify-between gap-4 border px-4 py-3 transition ${
                             isSelected
-                              ? "border-orange-600 bg-orange-50"
-                              : "border-stone-200 hover:border-orange-300"
+                              ? "border-[#8F482F] bg-[#F1E8DE]"
+                              : "border-[#DED7CA] hover:border-[#BFA18E]"
                           } ${limitReached ? "cursor-not-allowed opacity-50" : ""}`}
                         >
                           <span className="text-sm font-medium text-stone-800">
@@ -235,7 +243,7 @@ export default function ItemCustomizeModal({ item, onClose }: Props) {
             );
           })}
 
-          <div className="flex items-center justify-between border-t border-stone-100 pt-5">
+          <div className="flex items-center justify-between border-t border-[#DED7CA] pt-5">
             <div>
               <p className="text-sm font-bold text-stone-900">Quantity</p>
               <p className="mt-0.5 text-xs text-stone-500">
@@ -266,7 +274,7 @@ export default function ItemCustomizeModal({ item, onClose }: Props) {
           </div>
         </div>
 
-        <div className="shrink-0 border-t border-stone-100 bg-white px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 sm:px-7">
+        <div className="shrink-0 border-t border-[#DED7CA] bg-[#F8F6F0] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4 sm:px-7">
           <button
             type="button"
             onClick={handleAddToCart}

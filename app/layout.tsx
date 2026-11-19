@@ -17,7 +17,8 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Mickleham Kebab & Grill",
-  description: "Order online for Takeaway or Dine-In.",
+  description:
+    "Big Flavor, Hot Grill, and Your Favourite Kebabs and Burgers in Mickleham, Victoria.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -29,10 +30,18 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <AuthProvider>
           <CartProvider>
+            <a
+              href="#main-content"
+              className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:bg-[#F8F6F0] focus:px-4 focus:py-3 focus:text-[#29261F] focus:shadow-lg"
+            >
+              Skip to main content
+            </a>
             {/* Header must be INSIDE CartProvider, */}
             {/* because it uses useCart() to show the item count. */}
             <Header />
-            {children}
+            <div id="main-content" tabIndex={-1} className="flex-1">
+              {children}
+            </div>
           </CartProvider>
         </AuthProvider>
       </body>

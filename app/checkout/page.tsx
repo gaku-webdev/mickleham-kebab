@@ -18,6 +18,11 @@ type PromoQuote = {
   cartKey: string;
 };
 
+type TradingAvailability = {
+  available: boolean;
+  message: string;
+};
+
 const cardClass =
   "rounded-xl border border-[#E8DED2] bg-white p-5 sm:p-6";
 const inputClass =
@@ -113,6 +118,63 @@ export default function CheckoutPage() {
   const [checkoutError, setCheckoutError] = useState("");
   const [isApplyingPromo, setIsApplyingPromo] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [tradingAvailability, setTradingAvailability] =
+    useState<TradingAvailability | null>(null);
+  const [isCheckingTradingHours, setIsCheckingTradingHours] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    async function checkTradingHours() {
+      try {
+        const response = await fetch("/api/checkout/availability", {
+          cache: "no-store",
+        });
+        const data: { available?: unknown; message?: unknown } =
+          await response.json();
+
+        if (!active) return;
+        if (!response.ok && response.status !== 503) {
+          throw new Error(
+            typeof data.message === "string"
+              ? data.message
+              : "Could not check trading hours."
+          );
+        }
+
+        const available = response.ok && data.available === true;
+        setTradingAvailability({
+          available,
+          message:
+            typeof data.message === "string"
+              ? data.message
+              : available
+                ? "Ordering is open now."
+                : "Trading hours could not be verified. Please try again shortly.",
+        });
+      } catch (error) {
+        if (!active) return;
+        console.error("Failed to check checkout trading hours:", error);
+        setTradingAvailability({
+          available: false,
+          message:
+            "Trading hours could not be verified. Please try again shortly.",
+        });
+      } finally {
+        if (active) setIsCheckingTradingHours(false);
+      }
+    }
+
+    void checkTradingHours();
+    const intervalId = window.setInterval(() => {
+      void checkTradingHours();
+    }, 60_000);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+    };
+  }, []);
 
   const cartKey = JSON.stringify(
     items.map((item) => [
@@ -170,6 +232,18 @@ export default function CheckoutPage() {
   async function handlePlaceOrder(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setCheckoutError("");
+
+    if (isCheckingTradingHours) {
+      setCheckoutError("Please wait while we check today's trading hours.");
+      return;
+    }
+    if (!tradingAvailability?.available) {
+      setCheckoutError(
+        tradingAvailability?.message ??
+          "Trading hours could not be verified. Please try again shortly."
+      );
+      return;
+    }
 
     if (!items.length) {
       setCheckoutError("Your cart is empty. Add items before checking out.");
@@ -336,6 +410,26 @@ export default function CheckoutPage() {
                   </p>
                 </div>
               )}
+              <p
+                role={
+                  isCheckingTradingHours
+                    ? "status"
+                    : tradingAvailability?.available
+                      ? "status"
+                      : "alert"
+                }
+                aria-busy={isCheckingTradingHours}
+                className={`mt-4 border-l-2 px-3 py-2 text-sm ${
+                  isCheckingTradingHours || tradingAvailability?.available
+                    ? "border-[#8F482F] bg-[#F3EEE8] text-[#51473E]"
+                    : "border-red-700 bg-red-50 text-red-800"
+                }`}
+              >
+                {isCheckingTradingHours
+                  ? "Checking today's trading hours..."
+                  : tradingAvailability?.message ??
+                    "Trading hours could not be verified. Please try again shortly."}
+              </p>
             </section>
 
             <section className={cardClass}>
@@ -574,10 +668,20 @@ export default function CheckoutPage() {
 
             <button
               type="submit"
-              disabled={isSubmitting || isApplyingPromo || !orderType}
+              disabled={
+                isSubmitting ||
+                isApplyingPromo ||
+                !orderType ||
+                isCheckingTradingHours ||
+                !tradingAvailability?.available
+              }
               className="mt-4 w-full rounded-lg bg-[#CE421B] px-4 py-3 text-sm font-bold text-white transition hover:bg-[#B73714] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isSubmitting
+              {isCheckingTradingHours
+                ? "Checking trading hours..."
+                : !tradingAvailability?.available
+                  ? "Ordering unavailable"
+                  : isSubmitting
                 ? (
                     <Loader
                       size="sm"

@@ -25,30 +25,10 @@ export interface OperatingHour {
 }
 
 const CUISINES = [
-  {
-    name: "Burgers",
-    image:
-      "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=400&q=80",
-    href: "/menu",
-  },
-  {
-    name: "Fried Chicken",
-    image:
-      "https://images.unsplash.com/photo-1567620832903-9fc6debc209f?auto=format&fit=crop&w=400&q=80",
-    href: "/menu",
-  },
-  {
-    name: "Milkshake",
-    image:
-      "https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&w=400&q=80",
-    href: "/menu",
-  },
-  {
-    name: "Kebabs",
-    image:
-      "https://images.unsplash.com/photo-1529006557810-274b9b2fc783?auto=format&fit=crop&w=400&q=80",
-    href: "/menu",
-  },
+  "Burgers",
+  "Fried Chicken",
+  "Milkshake",
+  "Kebabs",
 ];
 
 // Display order: Monday through Sunday (matching reference screenshot)
@@ -189,9 +169,8 @@ export default function StoreInfoPage() {
               </div>
               <div className="bg-[#FAF7F2] border border-[#EBE6DD] rounded-xl p-4 sm:p-5">
                 <p className="text-xs sm:text-sm text-gray-700 leading-relaxed font-medium">
-                  Mickleham Kebab &amp; Grill based in Vic offers great-tasting
-                  Kebabs delights at affordable prices. Get Fresh Food Delivered
-                  Hot To Your Doorstep!
+                  Find us at 2/9–33 Errol Boulevard, Mickleham VIC 3064. Visit
+                  for dine-in, or order kebabs, pide and burgers for pickup.
                 </p>
                 <div className="mt-4 flex flex-wrap items-center gap-3 pt-3 border-t border-[#EBE6DD]">
                   <Link
@@ -239,11 +218,11 @@ export default function StoreInfoPage() {
 
               <div className="space-y-1 mb-4">
                 <p className="text-xs sm:text-sm font-semibold text-gray-900">
-                  2/9-33 Errol Bvd, Mickleham, Vic, VIC, 3064
+                  2/9–33 Errol Boulevard, Mickleham VIC 3064
                 </p>
                 <a
                   href="tel:0394539778"
-                  className="inline-block text-xs sm:text-sm font-semibold text-[#0284C7] hover:underline"
+                  className="inline-block text-xs sm:text-sm font-semibold text-[#8F482F] hover:underline"
                 >
                   (03) 9453 9778
                 </a>
@@ -253,7 +232,7 @@ export default function StoreInfoPage() {
               <div className="relative w-full h-64 sm:h-72 rounded-xl overflow-hidden border border-gray-200 shadow-2xs">
                 <iframe
                   title="Mickleham Kebab & Grill Location"
-                  src="https://maps.google.com/maps?q=2%2F9-33+Errol+Bvd%2C+Mickleham+VIC+3064&t=&z=15&ie=UTF8&iwloc=&output=embed"
+                  src="https://maps.google.com/maps?q=-37.5341057%2C144.8980763&z=17&output=embed"
                   className="w-full h-full border-0"
                   loading="lazy"
                   referrerPolicy="no-referrer-when-downgrade"
@@ -263,7 +242,7 @@ export default function StoreInfoPage() {
               <div className="mt-3 flex items-center justify-between text-xs text-gray-500">
 
                 <a
-                  href="https://www.google.com/maps/dir/?api=1&destination=2%2F9-33+Errol+Bvd%2C+Mickleham+VIC+3064"
+                  href="https://www.google.com/maps/dir/?api=1&destination=-37.5341057%2C144.8980763"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-xs font-bold text-[#C2410C] hover:underline flex items-center gap-1"
@@ -276,36 +255,32 @@ export default function StoreInfoPage() {
 
           {/* RIGHT COLUMN: CUISINES & OPENING HOURS (lg:col-span-5) */}
           <div className="lg:col-span-5 space-y-6">
-            {/* CARD 3: CUISINES */}
+            {/* MENU CATEGORIES */}
             <section className="bg-white rounded-2xl border border-[#EBE6DD] p-5 sm:p-6 shadow-xs">
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-base select-none">🍴</span>
-                <h2 className="text-xs sm:text-sm font-black uppercase tracking-wider text-gray-900">
-                  CUISINES
+              <div className="mb-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8F482F]">
+                  The menu
+                </p>
+                <h2 className="mt-1 text-2xl text-[#29261F]">
+                  Menu categories
                 </h2>
               </div>
-
-              <div className="grid grid-cols-4 sm:grid-cols-4 gap-2.5 text-center">
-                {CUISINES.map((item) => (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className="group flex flex-col items-center p-1.5 rounded-xl hover:bg-[#FAF7F2] transition-colors"
-                  >
-                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden border border-gray-200 shadow-2xs mb-1.5 bg-gray-50">
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        loading="lazy"
-                      />
-                    </div>
-                    <span className="text-[11px] sm:text-xs font-bold text-gray-800 group-hover:text-[#C2410C] transition-colors leading-tight">
-                      {item.name}
+              <ul className="mt-4 divide-y divide-[#DED7CA] border-y border-[#DED7CA]">
+                {CUISINES.map((cuisine, index) => (
+                  <li key={cuisine} className="flex min-h-12 items-center gap-4 py-3">
+                    <span className="font-serif text-sm italic text-[#9A4A2B]">
+                      {String(index + 1).padStart(2, "0")}
                     </span>
-                  </Link>
+                    <span className="font-serif text-lg">{cuisine}</span>
+                  </li>
                 ))}
-              </div>
+              </ul>
+              <Link
+                href="/menu"
+                className="mt-4 inline-flex items-center gap-3 border-b border-[#8F482F] pb-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#8F482F]"
+              >
+                View the full menu <span aria-hidden="true">↗</span>
+              </Link>
             </section>
 
             {/* CARD 4: OPENING HOURS */}
@@ -338,7 +313,7 @@ export default function StoreInfoPage() {
                   className="overflow-hidden rounded-xl border border-gray-300 shadow-2xs"
                 >
                   <table className="w-full border-collapse text-left text-xs">
-                    <thead className="bg-[#4B5563] text-[11px] font-bold uppercase tracking-wider text-white">
+                    <thead className="bg-[#29261F] text-[11px] font-bold uppercase tracking-wider text-white">
                       <tr>
                         <th className="border-r border-gray-500/50 px-3 py-2.5">
                           Day
@@ -370,7 +345,7 @@ export default function StoreInfoPage() {
               ) : (
                 <div className="overflow-hidden rounded-xl border border-gray-300 shadow-2xs">
                   <table className="w-full text-xs text-left border-collapse">
-                    <thead className="bg-[#4B5563] text-white uppercase text-[11px] font-bold tracking-wider">
+                    <thead className="bg-[#29261F] text-white uppercase text-[11px] font-bold tracking-wider">
                       <tr>
                         <th className="py-2.5 px-3 border-r border-gray-500/50">
                           Day

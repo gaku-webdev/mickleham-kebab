@@ -53,8 +53,8 @@ export default function MobileNav({
   const linkClass = (href: string) =>
     `flex min-h-12 items-center rounded-lg px-3 text-base font-semibold transition-colors ${
       isActivePath(pathname, href)
-        ? "bg-orange-50 text-[#C2410C]"
-        : "text-[#1C1917] hover:bg-[#F3EEE6]"
+        ? "bg-[#EEE5D9] text-[#8F482F]"
+        : "text-[#29261F] hover:bg-[#F1EEE6]"
     }`;
 
   return (
@@ -69,7 +69,7 @@ export default function MobileNav({
       <nav
         id={id}
         aria-label="Main menu"
-        className="absolute inset-x-0 top-full z-40 max-h-[calc(100dvh-4rem)] overflow-y-auto border-b border-[#EBE6DD] bg-[#FAF7F2] px-4 pb-6 pt-2 shadow-lg"
+        className="absolute inset-x-0 top-full z-40 max-h-[calc(100dvh-4rem)] overflow-y-auto border-b border-[#DED7CA] bg-[#F8F6F0] px-4 pb-6 pt-2 shadow-lg"
       >
         <ul className="flex flex-col gap-1">
           {NAV_LINKS.map((link) => (
@@ -86,11 +86,11 @@ export default function MobileNav({
           ))}
         </ul>
 
-        <div className="mt-4 border-t border-[#EBE6DD] pt-4">
+        <div className="mt-4 border-t border-[#DED7CA] pt-4">
           {isSignedIn ? (
             <>
               <div className="px-3 pb-3">
-                <p className="truncate text-sm font-bold text-[#1C1917]">
+                <p className="truncate font-serif text-lg text-[#29261F]">
                   {displayName}
                 </p>
                 {email && (
@@ -142,7 +142,7 @@ export default function MobileNav({
             <Link
               href="/login"
               onClick={onClose}
-              className="flex min-h-12 w-full items-center justify-center rounded-lg bg-[#1C1917] px-4 text-base font-semibold text-white transition-colors hover:bg-black"
+              className="flex min-h-12 w-full items-center justify-center bg-[#29261F] px-4 text-xs font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-[#8F482F]"
             >
               Sign in
             </Link>

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useCart } from "@/context/CartContext";
+import { useDialogFocus } from "@/components/useDialogFocus";
 
 type Props = {
   isOpen: boolean;
@@ -85,6 +86,7 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
   const [isApplyingPromo, setIsApplyingPromo] = useState(false);
   const [isCheckingPromo, setIsCheckingPromo] = useState(false);
   const itemCount = items.reduce((count, item) => count + item.quantity, 0);
+  const dialogRef = useDialogFocus<HTMLElement>(isOpen, onClose);
 
   const cartKey = JSON.stringify(
     items.map((item) => [
@@ -153,14 +155,18 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
         onClick={onClose}
       />
       <aside
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Your cart"
-        className="fixed right-0 top-0 z-50 flex h-[100dvh] w-full max-w-md flex-col bg-white text-[#1C1917] shadow-2xl"
+        aria-labelledby="cart-drawer-title"
+        tabIndex={-1}
+        className="fixed right-0 top-0 z-50 flex h-[100dvh] w-full max-w-md flex-col bg-[#F8F6F0] text-[#29261F] shadow-2xl"
       >
-        <div className="flex min-h-16 items-center justify-between border-b border-[#EBE6DD] px-5 py-4">
+        <div className="flex min-h-16 items-center justify-between border-b border-[#DED7CA] px-5 py-4">
           <div>
-            <h2 className="text-xl font-extrabold tracking-tight">Your Cart</h2>
+            <h2 id="cart-drawer-title" className="text-2xl tracking-tight">
+              Your Cart
+            </h2>
             {items.length > 0 && (
               <p className="mt-0.5 text-xs font-medium text-stone-500">
                 {itemCount} {itemCount === 1 ? "item" : "items"} in your order
@@ -179,7 +185,7 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
 
         <div className="flex-1 space-y-5 overflow-y-auto p-5">
           {items.length === 0 ? (
-            <div className="mt-8 rounded-2xl border border-dashed border-stone-300 bg-stone-50 px-5 py-10 text-center">
+            <div className="mt-8 border-y border-dashed border-[#CFC8BB] bg-[#F3F0E8] px-5 py-10 text-center">
               <p className="font-bold text-stone-800">Your cart is empty</p>
               <p className="mt-1 text-sm text-stone-500">
                 Add something delicious from our menu.
@@ -196,7 +202,7 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
             items.map((item) => (
               <article
                 key={item.id}
-                className="flex items-start justify-between gap-4 border-b border-[#EBE6DD] pb-4 last:border-b-0"
+                className="flex items-start justify-between gap-4 border-b border-[#DED7CA] pb-4 last:border-b-0"
               >
                 <div className="min-w-0 flex-1">
                   <p className="font-bold leading-5 text-stone-900">{item.name}</p>
@@ -243,7 +249,7 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
             <>
               <form
                 onSubmit={handleApplyPromo}
-                className="border-b border-[#EBE6DD] pb-5"
+                className="border-b border-[#DED7CA] pb-5"
               >
                 <label
                   htmlFor="cart-promo-code"
@@ -342,6 +348,7 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
                       <span>Guests</span>
                       <button
                         type="button"
+                        aria-label="Decrease number of guests"
                         onClick={() => setGuestCount(Math.max(1, guestCount - 1))}
                         className="flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200 hover:bg-orange-50"
                       >
@@ -352,6 +359,7 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
                       </span>
                       <button
                         type="button"
+                        aria-label="Increase number of guests"
                         onClick={() => setGuestCount(guestCount + 1)}
                         className="flex h-8 w-8 items-center justify-center rounded-lg border border-stone-200 hover:bg-orange-50"
                       >
@@ -366,7 +374,7 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
         </div>
 
         {items.length > 0 && (
-          <div className="space-y-3 border-t border-[#EBE6DD] bg-white px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 shadow-[0_-8px_24px_rgba(41,35,31,0.06)]">
+          <div className="space-y-3 border-t border-[#DED7CA] bg-[#F8F6F0] px-5 pb-[calc(1rem+env(safe-area-inset-bottom))] pt-4 shadow-[0_-8px_24px_rgba(41,35,31,0.06)]">
             {isCheckingPromo ? (
               <div role="status" aria-label="Updating cart totals">
                 <div className="flex items-center justify-between text-sm text-green-700">

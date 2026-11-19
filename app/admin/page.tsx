@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Loader from "@/components/Loader";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
+import { useDialogFocus } from "@/components/useDialogFocus";
 import {
   formatDateOnly,
   formatClockTime,
@@ -143,32 +144,6 @@ export default function AdminPage() {
   const [orderDetailsError, setOrderDetailsError] = useState<string | null>(
     null
   );
-  const orderDetailsCloseRef = useRef<HTMLButtonElement | null>(null);
-  const orderDetailsTriggerRef = useRef<HTMLButtonElement | null>(null);
-
-  useEffect(() => {
-    if (!selectedOrder) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    orderDetailsCloseRef.current?.focus();
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setSelectedOrder(null);
-        setSelectedOrderItems([]);
-        setOrderDetailsError(null);
-      }
-    };
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", handleKeyDown);
-      orderDetailsTriggerRef.current?.focus();
-    };
-  }, [selectedOrder]);
-
   useEffect(() => {
     async function verifyRoleAndLoadData() {
       if (authLoading) return;
@@ -444,6 +419,10 @@ export default function AdminPage() {
     setSelectedOrderItems([]);
     setOrderDetailsError(null);
   };
+  const orderDetailsRef = useDialogFocus<HTMLElement>(
+    Boolean(selectedOrder),
+    closeOrderDetails
+  );
 
   const updateReservationStatus = async (id: string, status: string) => {
     setUpdatingId(id);
@@ -517,7 +496,7 @@ export default function AdminPage() {
   // 1. Loading State
   if (authLoading || roleLoading) {
     return (
-      <main className="min-h-screen bg-[#FAF7F2] px-4 py-12 text-[#1C1917] sm:px-8 flex items-center justify-center">
+      <main className="editorial-dashboard min-h-screen bg-[#FAF7F2] px-4 py-12 text-[#1C1917] sm:px-8 flex items-center justify-center">
         <Loader label="Checking permissions..." />
       </main>
     );
@@ -526,7 +505,7 @@ export default function AdminPage() {
   // 2. if not logged in 
   if (!user) {
     return (
-      <main className="min-h-screen bg-[#FAF7F2] px-4 py-12 text-[#1C1917] sm:px-8 flex items-center justify-center">
+      <main className="editorial-dashboard min-h-screen bg-[#FAF7F2] px-4 py-12 text-[#1C1917] sm:px-8 flex items-center justify-center">
         <div className="w-full max-w-md rounded-2xl border border-[#EBE6DD] bg-white p-8 text-center shadow-sm">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#FDEEE7] text-[#EA580C]">
             <svg
@@ -572,7 +551,7 @@ export default function AdminPage() {
   // 3. Logged In, but has no role permission to access admin panel
   if (!isAuthorized) {
     return (
-      <main className="min-h-screen bg-[#FAF7F2] px-4 py-12 text-[#1C1917] sm:px-8 flex items-center justify-center">
+      <main className="editorial-dashboard min-h-screen bg-[#FAF7F2] px-4 py-12 text-[#1C1917] sm:px-8 flex items-center justify-center">
         <div className="w-full max-w-md rounded-2xl border border-red-200 bg-white p-8 text-center shadow-sm">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-red-50 text-red-600">
             <svg
@@ -613,7 +592,7 @@ export default function AdminPage() {
   // 4. Error loading data for admin dashboard
   if (dataError) {
     return (
-      <main className="min-h-screen bg-[#FAF7F2] px-4 py-12 text-[#1C1917] sm:px-8">
+      <main className="editorial-dashboard min-h-screen bg-[#FAF7F2] px-4 py-12 text-[#1C1917] sm:px-8">
         <div className="mx-auto max-w-4xl rounded-2xl border border-red-200 bg-white p-6 shadow-sm">
           <h1 className="text-xl font-bold text-red-700">
             Could not load admin panel
@@ -639,7 +618,7 @@ export default function AdminPage() {
   ];
 
   return (
-    <main className="min-h-screen bg-[#FAF7F2] px-4 py-8 text-[#1C1917] sm:px-8 sm:py-12">
+    <main className="editorial-dashboard min-h-screen bg-[#FAF7F2] px-4 py-8 text-[#1C1917] sm:px-8 sm:py-12">
       <div className="mx-auto max-w-6xl">
         <div className="mb-8">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#EA580C]">
@@ -655,127 +634,116 @@ export default function AdminPage() {
 
         <section
           aria-labelledby="today-stats-heading"
-          className="mt-6 rounded-2xl border border-[#EBE6DD] bg-white p-5 shadow-sm sm:p-6"
+          className="mt-8 border-y border-[#DED7CA] py-5"
         >
-          <div className="mb-4">
-            <p className="text-xs font-bold uppercase tracking-wider text-[#C2410C]">
+          <div className="mb-5">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#8F482F]">
               Today
             </p>
-            <h2
-              id="today-stats-heading"
-              className="mt-1 text-xl font-extrabold"
-            >
-              Daily stats
+            <h2 id="today-stats-heading" className="mt-1 text-2xl">
+              Daily summary
             </h2>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl bg-[#FAF7F2] p-4">
-              <p className="text-sm font-medium text-gray-600">Orders</p>
-              <p className="mt-1 text-2xl font-extrabold">{todayOrderCount}</p>
+          <dl className="grid divide-y divide-[#DED7CA] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+            <div className="py-3 sm:px-5 sm:py-0 sm:first:pl-0">
+              <dt className="text-xs font-medium text-gray-600">Orders</dt>
+              <dd className="mt-1 text-2xl tabular-nums">{todayOrderCount}</dd>
             </div>
-            <div className="rounded-xl bg-[#FAF7F2] p-4">
-              <p className="text-sm font-medium text-gray-600">Reservations</p>
-              <p className="mt-1 text-2xl font-extrabold">
+            <div className="py-3 sm:px-5 sm:py-0">
+              <dt className="text-xs font-medium text-gray-600">Reservations</dt>
+              <dd className="mt-1 text-2xl tabular-nums">
                 {todayReservationCount}
-              </p>
+              </dd>
             </div>
-            <div className="rounded-xl bg-[#FAF7F2] p-4">
-              <p className="text-sm font-medium text-gray-600">Sales</p>
-              <p className="mt-1 text-2xl font-extrabold">
+            <div className="py-3 sm:px-5 sm:py-0">
+              <dt className="text-xs font-medium text-gray-600">Sales</dt>
+              <dd className="mt-1 text-2xl tabular-nums">
                 {new Intl.NumberFormat("en-AU", {
                   style: "currency",
                   currency: "AUD",
                 }).format(todaySales)}
-              </p>
-              <p className="mt-1 text-xs text-gray-500">
+              </dd>
+              <dd className="mt-1 text-xs text-gray-500">
                 {paidTodayOrders.length} paid{" "}
                 {paidTodayOrders.length === 1 ? "order" : "orders"}
-              </p>
+              </dd>
             </div>
-          </div>
+          </dl>
         </section>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <nav aria-label="Dashboard tools" className="mt-7 grid gap-x-10 sm:grid-cols-2">
           <a
             href="#orders"
-            className="group rounded-2xl border border-[#EBE6DD] bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-md"
+            className="group flex items-center justify-between gap-5 border-b border-[#DED7CA] py-5"
           >
-            <div className="flex items-start justify-between">
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-xl" aria-hidden="true">
-                🧾
-              </span>
-              <span className="rounded-full bg-orange-50 px-3 py-1 text-sm font-bold text-[#C2410C]">
-                {orders.length}
-              </span>
+            <div>
+              <p className="text-xs text-gray-500">{orders.length} orders</p>
+              <h2 className="mt-1 text-xl group-hover:text-[#8F482F]">
+                Order management
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Review orders and update kitchen status.
+              </p>
             </div>
-            <h2 className="mt-4 text-base font-bold">Order management</h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Track orders and update kitchen status.
-            </p>
-            <span className="mt-4 inline-block text-sm font-bold text-[#C2410C]">
-              Manage orders <span aria-hidden="true">→</span>
+            <span className="text-lg text-[#8F482F]" aria-hidden="true">
+              ↗
             </span>
           </a>
 
           <a
             href="#reservations"
-            className="group rounded-2xl border border-[#EBE6DD] bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-md"
+            className="group flex items-center justify-between gap-5 border-b border-[#DED7CA] py-5"
           >
-            <div className="flex items-start justify-between">
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-xl" aria-hidden="true">
-                📅
-              </span>
-              <span className="rounded-full bg-orange-50 px-3 py-1 text-sm font-bold text-[#C2410C]">
-                {reservations.length}
-              </span>
+            <div>
+              <p className="text-xs text-gray-500">
+                {reservations.length} reservations
+              </p>
+              <h2 className="mt-1 text-xl group-hover:text-[#8F482F]">
+                Reservation management
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Review bookings and confirm guest status.
+              </p>
             </div>
-            <h2 className="mt-4 text-base font-bold">Reservation management</h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Review bookings and confirm guest status.
-            </p>
-            <span className="mt-4 inline-block text-sm font-bold text-[#C2410C]">
-              Manage reservations <span aria-hidden="true">→</span>
+            <span className="text-lg text-[#8F482F]" aria-hidden="true">
+              ↗
             </span>
           </a>
 
           <Link
             href="/manage-menu"
-            className="group rounded-2xl border border-[#EBE6DD] bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-md"
+            className="group flex items-center justify-between gap-5 border-b border-[#DED7CA] py-5"
           >
-            <div className="flex items-start justify-between">
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-xl" aria-hidden="true">
-                🍽️
-              </span>
-              <span className="text-xl text-[#C2410C]" aria-hidden="true">↗</span>
+            <div>
+              <h2 className="text-xl group-hover:text-[#8F482F]">
+                Menu management
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Update dishes, prices and categories.
+              </p>
             </div>
-            <h2 className="mt-4 text-base font-bold">Menu management</h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Add dishes, update prices and organize categories.
-            </p>
-            <span className="mt-4 inline-block text-sm font-bold text-[#C2410C]">
-              Customize menu <span aria-hidden="true">→</span>
+            <span className="text-lg text-[#8F482F]" aria-hidden="true">
+              ↗
             </span>
           </Link>
 
           <Link
             href="/manage-promos"
-            className="group rounded-2xl border border-[#EBE6DD] bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-orange-200 hover:shadow-md"
+            className="group flex items-center justify-between gap-5 border-b border-[#DED7CA] py-5"
           >
-            <div className="flex items-start justify-between">
-              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-xl" aria-hidden="true">
-                🏷️
-              </span>
-              <span className="text-xl text-[#C2410C]" aria-hidden="true">↗</span>
+            <div>
+              <h2 className="text-xl group-hover:text-[#8F482F]">
+                Promotion management
+              </h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Create offers, promo codes and schedules.
+              </p>
             </div>
-            <h2 className="mt-4 text-base font-bold">Promotions management</h2>
-            <p className="mt-1 text-sm text-gray-500">
-              Create offers, promo codes and schedules.
-            </p>
-            <span className="mt-4 inline-block text-sm font-bold text-[#C2410C]">
-              Manage promotions <span aria-hidden="true">→</span>
+            <span className="text-lg text-[#8F482F]" aria-hidden="true">
+              ↗
             </span>
           </Link>
-        </div>
+        </nav>
 
         {isAdminUser && (
           <section className="mt-6 rounded-2xl border border-[#EBE6DD] bg-white p-5 shadow-sm sm:p-6">
@@ -860,9 +828,11 @@ export default function AdminPage() {
               className="absolute inset-0 bg-stone-950/50 backdrop-blur-[1px]"
             />
             <section
+              ref={orderDetailsRef}
               role="dialog"
               aria-modal="true"
               aria-labelledby="admin-order-details-title"
+              tabIndex={-1}
               className="relative z-10 flex max-h-[90dvh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[#EBE6DD] bg-white text-[#1C1917] shadow-2xl"
             >
               <header className="flex min-h-16 items-center justify-between border-b border-[#EBE6DD] px-5 py-4">
@@ -879,7 +849,6 @@ export default function AdminPage() {
                   </h2>
                 </div>
                 <button
-                  ref={orderDetailsCloseRef}
                   type="button"
                   aria-label="Close order details"
                   onClick={closeOrderDetails}
@@ -1099,8 +1068,7 @@ export default function AdminPage() {
                     >
                       <button
                         type="button"
-                        onClick={(event) => {
-                          orderDetailsTriggerRef.current = event.currentTarget;
+                        onClick={() => {
                           void openOrderDetails(order);
                         }}
                         aria-haspopup="dialog"

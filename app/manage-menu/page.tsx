@@ -446,7 +446,7 @@ export default function ManageMenuPage() {
 
   if (authLoading || permissionLoading) {
     return (
-      <main className="flex min-h-[70vh] items-center justify-center bg-[#FAF7F2] px-4 text-[#1C1917]">
+      <main className="editorial-dashboard flex min-h-[70vh] items-center justify-center bg-[#FAF7F2] px-4 text-[#1C1917]">
         <Loader label="Checking permissions..." />
       </main>
     );
@@ -454,7 +454,7 @@ export default function ManageMenuPage() {
 
   if (!user || !isAuthorized) {
     return (
-      <main className="flex min-h-[70vh] items-center justify-center bg-[#FAF7F2] px-4 text-[#1C1917]">
+      <main className="editorial-dashboard flex min-h-[70vh] items-center justify-center bg-[#FAF7F2] px-4 text-[#1C1917]">
         <section className="w-full max-w-md rounded-2xl border border-[#EBE6DD] bg-white p-8 text-center shadow-sm">
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#C2410C]">
             Mickleham Kebab &amp; Grill
@@ -484,7 +484,7 @@ export default function ManageMenuPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#FAF7F2] px-4 py-8 text-[#1C1917] sm:px-8 sm:py-12">
+    <main className="editorial-dashboard min-h-screen bg-[#FAF7F2] px-4 py-8 text-[#1C1917] sm:px-8 sm:py-12">
       <div className="mx-auto max-w-6xl">
         <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
           <div>

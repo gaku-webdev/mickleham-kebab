@@ -6,6 +6,7 @@ import Loader from "@/components/Loader";
 import Skeleton from "@/components/Skeleton";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
+import { useDialogFocus } from "@/components/useDialogFocus";
 import {
   formatDateOnly,
   formatClockTime,
@@ -98,6 +99,18 @@ export default function ReservationsManagePage() {
 
   // Guest Security Prompt Modal state
   const [authPromptBooking, setAuthPromptBooking] = useState<Reservation | null>(null);
+  const authPromptDialogRef = useDialogFocus<HTMLDivElement>(
+    Boolean(authPromptBooking),
+    () => setAuthPromptBooking(null)
+  );
+  const modifyDialogRef = useDialogFocus<HTMLDivElement>(
+    Boolean(modifyingBooking),
+    () => setModifyingBooking(null)
+  );
+  const cancelDialogRef = useDialogFocus<HTMLDivElement>(
+    Boolean(cancellingBooking),
+    () => setCancellingBooking(null)
+  );
 
   // Fetch operating_hours dynamically from Supabase
   useEffect(() => {
@@ -836,10 +849,18 @@ export default function ReservationsManagePage() {
       {/* MODAL: Guest Security Sign-In Prompt */}
       {authPromptBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-sm p-6 relative animate-in fade-in zoom-in-95 duration-150 text-center">
+          <div
+            ref={authPromptDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reservation-auth-title"
+            tabIndex={-1}
+            className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-sm p-6 relative animate-in fade-in zoom-in-95 duration-150 text-center"
+          >
             <button
               type="button"
               onClick={() => setAuthPromptBooking(null)}
+              aria-label="Close sign-in prompt"
               className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
             >
               ✕
@@ -849,7 +870,7 @@ export default function ReservationsManagePage() {
               🔒
             </div>
 
-            <h3 className="text-lg font-bold text-gray-900">
+            <h3 id="reservation-auth-title" className="text-lg font-bold text-gray-900">
               Sign In Required
             </h3>
 
@@ -882,16 +903,24 @@ export default function ReservationsManagePage() {
       {/* MODAL: Modify Booking (Requirement 10.5) */}
       {modifyingBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-md p-6 relative animate-in fade-in zoom-in-95 duration-150">
+          <div
+            ref={modifyDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modify-reservation-title"
+            tabIndex={-1}
+            className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-md p-6 relative animate-in fade-in zoom-in-95 duration-150"
+          >
             <button
               type="button"
               onClick={() => setModifyingBooking(null)}
+              aria-label="Close reservation editor"
               className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
             >
               ✕
             </button>
 
-            <h2 className="text-xl font-extrabold text-[#1C1917] mb-1">
+            <h2 id="modify-reservation-title" className="text-xl font-extrabold text-[#1C1917] mb-1">
               Modify Reservation
             </h2>
             <p className="text-xs text-gray-500 mb-4">
@@ -1041,11 +1070,18 @@ export default function ReservationsManagePage() {
       {/* MODAL: Cancel Booking Confirmation (Requirement 10.5) */}
       {cancellingBooking && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-sm p-6 relative animate-in fade-in zoom-in-95 duration-150">
+          <div
+            ref={cancelDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cancel-reservation-title"
+            tabIndex={-1}
+            className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-sm p-6 relative animate-in fade-in zoom-in-95 duration-150"
+          >
             <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-3 text-xl font-bold">
               !
             </div>
-            <h3 className="text-lg font-bold text-center text-gray-900">
+            <h3 id="cancel-reservation-title" className="text-lg font-bold text-center text-gray-900">
               Cancel Reservation?
             </h3>
             <p className="text-xs text-center text-gray-500 mt-1 mb-5">

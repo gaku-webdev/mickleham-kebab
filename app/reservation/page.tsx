@@ -5,6 +5,7 @@ import Link from "next/link";
 import Loader from "@/components/Loader";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
+import { useDialogFocus } from "@/components/useDialogFocus";
 import {
   formatDateOnly,
   formatClockTime,
@@ -78,6 +79,14 @@ export default function ReservationPage() {
   // Modals state
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isCalendarModalOpen, setIsCalendarModalOpen] = useState(false);
+  const detailsDialogRef = useDialogFocus<HTMLDivElement>(
+    isDetailsModalOpen,
+    () => setIsDetailsModalOpen(false)
+  );
+  const calendarDialogRef = useDialogFocus<HTMLDivElement>(
+    isCalendarModalOpen,
+    () => setIsCalendarModalOpen(false)
+  );
   const [calendarMonth, setCalendarMonth] = useState<Date | null>(null);
 
   // Customer Contact Details state (Requirement 10.2)
@@ -442,7 +451,7 @@ export default function ReservationPage() {
             </span>
             <Link
               href="/reservations"
-              className="text-xs font-semibold text-[#0284C7] hover:underline flex items-center gap-1.5"
+              className="text-xs font-semibold text-[#8F482F] hover:underline flex items-center gap-1.5"
             >
               <span>📅</span> My Bookings
             </Link>
@@ -455,11 +464,7 @@ export default function ReservationPage() {
                 Mickleham Kebab &amp; Grill
               </h1>
               <p className="text-xs text-gray-500 mt-1 flex items-center gap-1.5">
-                <span>📍</span> 2/9-33 Errol Bvd, Mickleham, Vic
-              </p>
-              <p className="text-xs font-bold text-gray-800 mt-1 flex items-center gap-1">
-                <span className="text-amber-500 text-sm">★</span> 4.8{" "}
-                <span className="font-normal text-gray-400">(60)</span>
+                <span>📍</span> 2/9–33 Errol Boulevard, Mickleham VIC 3064
               </p>
             </div>
 
@@ -896,11 +901,19 @@ export default function ReservationPage() {
       {/* MODAL 1: "Your details" (Matching Image 2) */}
       {isDetailsModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-sm p-6 relative animate-in fade-in zoom-in-95 duration-150">
+          <div
+            ref={detailsDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reservation-details-title"
+            tabIndex={-1}
+            className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-sm p-6 relative animate-in fade-in zoom-in-95 duration-150"
+          >
             {/* Close Button */}
             <button
               type="button"
               onClick={() => setIsDetailsModalOpen(false)}
+              aria-label="Close reservation details"
               className="absolute top-5 right-5 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
             >
               <svg
@@ -918,7 +931,10 @@ export default function ReservationPage() {
             </button>
 
             {/* Modal Title */}
-            <h2 className="text-xl font-bold text-[#1C1917] mb-5">
+            <h2
+              id="reservation-details-title"
+              className="text-xl font-bold text-[#1C1917] mb-5"
+            >
               Your details
             </h2>
 
@@ -1040,7 +1056,7 @@ export default function ReservationPage() {
                 <Link
                   href="/login"
                   onClick={() => setIsDetailsModalOpen(false)}
-                  className="text-[#0284C7] font-bold hover:underline cursor-pointer"
+                  className="text-[#8F482F] font-bold hover:underline cursor-pointer"
                 >
                   Sign in
                 </Link>
@@ -1071,15 +1087,26 @@ export default function ReservationPage() {
       {/* MODAL 2: "Choose a date" Calendar Picker (Matching Image 3) */}
       {isCalendarModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-xs p-5 relative animate-in fade-in zoom-in-95 duration-150">
+          <div
+            ref={calendarDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reservation-calendar-title"
+            tabIndex={-1}
+            className="bg-white rounded-2xl shadow-xl border border-gray-200 w-full max-w-xs p-5 relative animate-in fade-in zoom-in-95 duration-150"
+          >
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-[#1C1917]">
+              <h2
+                id="reservation-calendar-title"
+                className="text-base font-bold text-[#1C1917]"
+              >
                 Choose a date
               </h2>
               <button
                 type="button"
                 onClick={() => setIsCalendarModalOpen(false)}
+                aria-label="Close date picker"
                 className="text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
               >
                 <svg

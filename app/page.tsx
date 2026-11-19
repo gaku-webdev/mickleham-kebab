@@ -29,9 +29,9 @@ function toMinutes(time: string): number {
 
 // Small highlights shown in a strip under the hero.
 const HIGHLIGHTS = [
-  { icon: "🥗", label: "Vegetarian options" },
-  { icon: "🥡", label: "Dine-in & Takeaway" },
-  { icon: "💬", label: "Ask us about allergies" },
+  { icon: "01", label: "Vegetarian options" },
+  { icon: "02", label: "Dine-in & Takeaway" },
+  { icon: "03", label: "Ask us about allergies" },
 ];
 
 // Shared heading style so every section reads the same way.
@@ -48,16 +48,20 @@ function SectionHeading({
 }) {
   return (
     <div>
-      <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#C2410C]">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-[#9A4A2B]">
         {eyebrow}
       </p>
       <h2
         id={id}
-        className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl"
+        className="mt-3 font-serif text-4xl font-normal leading-tight tracking-[-0.035em] sm:text-5xl"
       >
         {title}
       </h2>
-      {description && <p className="mt-3 text-gray-600">{description}</p>}
+      {description && (
+        <p className="mt-4 max-w-xl text-sm leading-7 text-[#6F6A62] sm:text-base">
+          {description}
+        </p>
+      )}
     </div>
   );
 }
@@ -74,8 +78,15 @@ export default function Home() {
   const [hoursLoading, setHoursLoading] = useState(true);
 
   // "Right now", in Melbourne time (not the visitor's own device time).
-  const [currentDayOfWeek, setCurrentDayOfWeek] = useState<number | null>(null);
-  const [currentMinutes, setCurrentMinutes] = useState<number | null>(null);
+  const [{ currentDayOfWeek, currentMinutes }] = useState(() => {
+    const parts = getMelbourneDateParts();
+    return {
+      currentDayOfWeek: new Date(
+        Date.UTC(parts.year, parts.month - 1, parts.day)
+      ).getUTCDay(),
+      currentMinutes: parts.hour * 60 + parts.minute,
+    };
+  });
 
   useEffect(() => {
     // Prevents setState after this page has already been left.
@@ -131,13 +142,6 @@ export default function Home() {
       }
     }
 
-    const parts = getMelbourneDateParts();
-    const dayOfWeek = new Date(
-      Date.UTC(parts.year, parts.month - 1, parts.day)
-    ).getUTCDay();
-    setCurrentDayOfWeek(dayOfWeek);
-    setCurrentMinutes(parts.hour * 60 + parts.minute);
-
     loadPromos();
     loadOperatingHours();
 
@@ -166,24 +170,28 @@ export default function Home() {
   // Fragment because this page returns both <main> and <Footer /> side by side.
   return (
     <>
-      <main className="flex-1 bg-[#FAF7F2] text-[#1C1917]">
+      <main className="flex-1 bg-[#F8F6F0] text-[#25221D]">
         {/* HERO */}
-        <section className="px-4 pb-12 pt-10 sm:px-8 sm:pb-16 sm:pt-16">
-          <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[1.1fr_1fr] lg:items-center lg:gap-14">
-            <div>
+        <section className="home-hero relative isolate overflow-hidden px-5 pb-10 pt-8 sm:px-8 sm:pb-14 sm:pt-12">
+          <div className="mx-auto grid max-w-7xl gap-2 lg:grid-cols-[0.88fr_1.12fr] lg:items-center lg:gap-8">
+            <div className="relative z-10 py-2 lg:py-10">
+              <p className="home-reveal home-delay-1 mb-6 text-[10px] font-semibold uppercase tracking-[0.24em] text-[#8D4B32]">
+                Mickleham, Victoria{" "}
+                <span className="px-2 text-[#C9BFB0]">/</span> Kebab &amp; Grill
+              </p>
               {/* Fixed height so the heading doesn't jump when hours load */}
-              <div className="mb-5 flex h-7 items-center">
+              <div className="mb-6 flex h-7 items-center">
                 {hoursLoading ? (
                   <div
                     role="status"
                     aria-label="Loading opening status"
                     aria-busy="true"
                   >
-                    <Skeleton className="h-7 w-48 rounded-full" />
+                    <Skeleton tone="warm" className="h-4 w-44" />
                     <span className="sr-only">Loading opening status...</span>
                   </div>
                 ) : (
-                  <p className="inline-flex items-center gap-2 rounded-full border border-[#EBE6DD] bg-white px-3 py-1 text-xs font-semibold">
+                  <p className="home-reveal inline-flex items-center gap-2 border-y border-[#DED7CA] py-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-[#5D574F]">
                     <span
                       className={`h-2 w-2 rounded-full ${
                         isOpenNow ? "bg-green-500" : "bg-gray-400"
@@ -197,58 +205,101 @@ export default function Home() {
                 )}
               </div>
 
-              <h1 className="text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
-                Kebabs, pide and burgers, made fresh in{" "}
-                <span className="text-[#C2410C]">Mickleham.</span>
+              <h1 className="home-reveal home-delay-2 max-w-2xl font-serif text-[3.4rem] font-normal leading-[0.96] tracking-[-0.055em] sm:text-7xl lg:text-[4rem]">
+                Kebabs, pide
+                <br />
+                <span className="italic text-[#994C31]">&amp; burgers</span>
+                <br />
+                in Mickleham.
               </h1>
-              <p className="mt-5 max-w-md text-lg text-gray-600">
-                Order online and pick up, or book a table and eat with us.
+              <p className="home-reveal home-delay-3 mt-6 max-w-md text-base leading-7 text-[#6F6A62] sm:mt-7 sm:text-lg sm:leading-8">
+                Big Flavor, Hot Grill, and Your Favourite Kebabs and Burgers.
               </p>
 
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <div className="home-reveal home-delay-4 mt-7 flex flex-col gap-3 sm:mt-8 sm:flex-row sm:items-center">
                 <Link
                   href="/menu"
-                  className="inline-flex min-h-12 items-center justify-center rounded-xl bg-[#C2410C] px-7 font-semibold text-white shadow-sm transition-colors hover:bg-[#9A3412]"
+                  className="home-cta home-cta-primary inline-flex min-h-12 items-center justify-center bg-[#29261F] px-7 text-xs font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-[#8F482F]"
                 >
-                  Order Now
+                  Explore the menu{" "}
+                  <span className="home-arrow ml-3 text-base" aria-hidden="true">
+                    ↗
+                  </span>
                 </Link>
                 <Link
                   href="/reservation"
-                  className="inline-flex min-h-12 items-center justify-center rounded-xl border border-gray-300 bg-white px-7 font-semibold text-gray-800 transition-colors hover:border-gray-500"
+                  className="home-cta inline-flex min-h-12 items-center justify-center border border-[#CFC8BB] px-7 text-xs font-semibold uppercase tracking-[0.12em] text-[#29261F] transition-colors hover:border-[#8F482F] hover:text-[#8F482F]"
                 >
-                  Book a Table
+                  Book a table
                 </Link>
               </div>
             </div>
 
-            <div className="relative aspect-[4/3] overflow-hidden rounded-3xl bg-[#EFE7DB] shadow-xl shadow-black/10 lg:aspect-[4/5]">
-              <Image
-                src="/images/hero-grill-platter.jpg"
-                alt="Grilled chicken and lamb skewers, lamb cutlets, roasted vegetables and dipping sauces served on flatbread"
-                fill
-                preload
-                sizes="(min-width: 1024px) 520px, 100vw"
-                className="object-cover"
-              />
+            <div className="home-hero-art home-reveal home-delay-3 relative mx-auto flex aspect-[1/0.88] w-full max-w-[560px] items-center justify-center lg:aspect-square">
+              <span className="home-hero-word" aria-hidden="true">
+                GRILL
+              </span>
+              <span className="home-hero-ring home-hero-ring-outer" aria-hidden="true" />
+              <span className="home-hero-ring home-hero-ring-inner" aria-hidden="true" />
+              <figure className="relative z-10 flex h-full w-full items-center justify-center">
+                <Link
+                  href="/menu"
+                  aria-label="Explore the Mickleham Kebab & Grill menu"
+                  className="home-hero-photo group relative block aspect-square w-[72%] max-w-[440px] overflow-hidden rounded-full border-[9px] border-[#FFF9F2] bg-[#E9E1D5]"
+                >
+                  <Image
+                    src="/images/hero-grill-platter.jpg"
+                    alt="Grilled chicken and lamb skewers, lamb cutlets, roasted vegetables and dipping sauces served on flatbread"
+                    fill
+                    preload
+                    sizes="(min-width: 1024px) 440px, 72vw"
+                    className="home-hero-photo-image object-cover"
+                  />
+                </Link>
+                <figcaption className="absolute bottom-0 z-20 text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-[#716A60]">
+                  Grilled meats · Mickleham, Victoria
+                </figcaption>
+              </figure>
+              <Link
+                href="/menu"
+                aria-label="Browse kebabs on the menu"
+                className="home-callout home-callout-one"
+              >
+                Kebabs <span aria-hidden="true">↗</span>
+              </Link>
+              <Link
+                href="/menu"
+                aria-label="Browse Turkish pide on the menu"
+                className="home-callout home-callout-two"
+              >
+                Biryani <span aria-hidden="true">↗</span>
+              </Link>
+              <Link
+                href="/menu"
+                aria-label="Browse burgers on the menu"
+                className="home-callout home-callout-three"
+              >
+                Burgers <span aria-hidden="true">↗</span>
+              </Link>
             </div>
           </div>
         </section>
 
         {/* HIGHLIGHTS STRIP */}
-        <section aria-label="What we offer" className="border-y border-[#EBE6DD] bg-white px-4 sm:px-8">
-          <ul className="mx-auto grid max-w-6xl divide-y divide-[#EBE6DD] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+        <section aria-label="What we offer" className="home-highlight-strip border-y border-[#713C2B] bg-[#8F482F] px-5 text-[#FFF9F2] sm:px-8">
+          <ul className="mx-auto grid max-w-7xl divide-y divide-[#B98269] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
             {HIGHLIGHTS.map((item) => (
               <li
                 key={item.label}
-                className="flex items-center gap-3 py-4 sm:justify-center sm:py-5"
+                className="flex items-center gap-4 py-4 sm:justify-center sm:py-5"
               >
                 <span
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#FAF7F2] text-xl"
+                  className="font-serif text-sm italic tracking-wide text-[#F1C4A9]"
                   aria-hidden="true"
                 >
                   {item.icon}
                 </span>
-                <span className="text-sm font-semibold">{item.label}</span>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.13em] text-[#FFF9F2]">{item.label}</span>
               </li>
             ))}
           </ul>
@@ -257,68 +308,78 @@ export default function Home() {
         {/* CURRENT PROMOTIONS */}
         <section
           aria-labelledby="promos-heading"
-          className="px-4 py-16 sm:px-8 sm:py-20"
+          className="px-5 py-16 sm:px-8 sm:py-24"
         >
-          <div className="mx-auto max-w-6xl">
-            <SectionHeading
-              id="promos-heading"
-              eyebrow="A little something extra"
-              title="Current promotions"
-              description="Use these deals when you order online."
-            />
+          <div className="mx-auto max-w-7xl">
+            <div className="home-reveal">
+              <SectionHeading
+                id="promos-heading"
+                eyebrow="At the table"
+                title="A little something extra"
+                description="Current offers available when you order online."
+              />
+            </div>
 
             {promosLoading ? (
               <div
                 role="status"
-                className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+                className="mt-12 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-3"
                 aria-busy="true"
                 aria-label="Loading promotions"
               >
                 {[0, 1, 2].map((index) => (
                   <article
                     key={index}
-                    className="flex min-h-56 flex-col gap-4 rounded-2xl border border-[#EBE6DD] bg-white p-5"
+                    className="flex min-h-[292px] flex-col border-t border-[#BFB6A8] py-5"
                   >
-                    <Skeleton tone="warm" className="h-5 w-2/3" />
-                    <Skeleton tone="warm" className="h-3 w-full" />
-                    <Skeleton tone="warm" className="h-3 w-4/5" />
-                    <Skeleton tone="warm" className="mt-auto h-10 w-28 rounded-lg" />
+                    <Skeleton tone="warm" className="h-9 w-28" />
+                    <Skeleton tone="warm" className="mt-4 h-7 w-3/4" />
+                    <div className="mt-4 space-y-3">
+                      <Skeleton tone="warm" className="h-3 w-full" />
+                      <Skeleton tone="warm" className="h-3 w-full" />
+                      <Skeleton tone="warm" className="h-3 w-4/5" />
+                    </div>
+                    <Skeleton tone="warm" className="mt-auto h-11 w-full" />
+                    <Skeleton tone="warm" className="mt-3 h-3 w-2/5" />
                   </article>
                 ))}
               </div>
             ) : promoError ? (
               <p
                 role="status"
-                className="mt-10 rounded-2xl bg-white px-6 py-8 text-center text-sm text-gray-600"
+                className="home-reveal mt-12 flex min-h-[292px] items-center justify-center border-y border-[#DED7CA] px-6 py-8 text-center text-sm text-[#6F6A62]"
               >
                 Promotions are unavailable right now. Please check back soon.
               </p>
             ) : promos.length ? (
-              <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {promos.map((promo) => (
+              <div className="mt-12 grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
+                {promos.map((promo, index) => (
                   <article
                     key={promo.id}
-                    className="flex flex-col rounded-2xl bg-white p-6 ring-1 ring-[#EBE6DD] transition-shadow hover:shadow-md"
+                    className="home-promo-card home-reveal flex min-h-[292px] flex-col border-t border-[#BFB6A8] py-5"
+                    style={{ animationDelay: `${index * 100}ms` }}
                   >
-                    <p className="text-3xl font-extrabold tracking-tight text-[#C2410C]">
+                    <p className="font-serif text-4xl font-normal tracking-tight text-[#994C31]">
                       {formatDiscount(promo)}
                     </p>
-                    <h3 className="mt-3 text-lg font-bold">{promo.title}</h3>
-                    <p className="mt-2 flex-1 text-sm leading-6 text-gray-600">
+                    <h3 className="mt-4 font-serif text-2xl font-normal">
+                      {promo.title}
+                    </h3>
+                    <p className="mt-3 flex-1 text-sm leading-7 text-[#6F6A62]">
                       {promo.description}
                     </p>
 
-                    <div className="mt-6 flex items-center justify-between gap-3 rounded-xl border-2 border-dashed border-orange-200 bg-[#FFFAF5] px-4 py-3">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    <div className="mt-6 flex items-center justify-between gap-3 border-y border-dashed border-[#CFC8BB] py-3">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-[#777065]">
                         Use code
                       </span>
-                      <span className="font-mono text-base font-bold tracking-wider text-[#9A3412]">
+                      <span className="font-mono text-sm font-bold tracking-wider text-[#8F482F]">
                         {promo.code}
                       </span>
                     </div>
 
                     {promo.expires_at && (
-                      <p className="mt-3 text-xs text-gray-500">
+                      <p className="mt-3 text-xs text-[#777065]">
                         Offer ends {formatMelbourneDate(promo.expires_at)}
                       </p>
                     )}
@@ -326,7 +387,7 @@ export default function Home() {
                 ))}
               </div>
             ) : (
-              <p className="mt-10 rounded-2xl bg-white px-6 py-8 text-center text-sm text-gray-500">
+              <p className="home-reveal mt-12 flex min-h-[292px] items-center justify-center border-y border-[#DED7CA] px-6 py-8 text-center text-sm text-[#777065]">
                 No active promotions at the moment. Please check back soon.
               </p>
             )}
@@ -334,23 +395,44 @@ export default function Home() {
         </section>
 
         {/* ABOUT / "YOUR LOCAL KEBAB SHOP" */}
-        <section className="bg-[#EFE7DB] px-4 py-16 sm:px-8 sm:py-20">
-          <div className="mx-auto grid max-w-6xl gap-10 lg:grid-cols-2 lg:items-center lg:gap-14">
-            <div className="relative aspect-[4/3] overflow-hidden rounded-3xl bg-[#E4D8C6] shadow-xl shadow-black/10">
-              <Image
-                src="/images/about-kebab-carving.jpg"
-                alt="A cook carving kebab meat from a vertical rotisserie in front of the grill"
-                fill
-                sizes="(min-width: 1024px) 560px, 100vw"
-                className="object-cover object-[35%_50%]"
+        <section className="bg-[#EDE8DD] px-5 py-16 sm:px-8 sm:py-24">
+          <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:gap-16">
+            <figure className="home-reveal">
+              <Link
+                href="/menu"
+                aria-label="Explore the menu"
+                className="home-photo-link relative block aspect-[4/3] overflow-hidden bg-[#E4D8C6]"
+              >
+                <Image
+                  src="/images/about-kebab-carving.jpg"
+                  alt="A cook carving kebab meat from a vertical rotisserie in front of the grill"
+                  fill
+                  sizes="(min-width: 1024px) 560px, 100vw"
+                  className="home-photo-image object-cover object-[35%_50%]"
+                />
+              </Link>
+              <figcaption className="mt-3 border-t border-[#CEC5B6] pt-3 text-[10px] uppercase tracking-[0.16em] text-[#716A60]">
+                Kebab meat carved from the vertical rotisserie.
+              </figcaption>
+            </figure>
+            <div className="home-reveal home-delay-2 py-2 lg:py-8">
+              <SectionHeading
+                eyebrow="Mickleham, Victoria"
+                title="Kebabs, pide and burgers on Errol Boulevard."
               />
-            </div>
-            <div>
-              <SectionHeading eyebrow="About us" title="Your local kebab shop" />
-              <p className="mt-4 max-w-md text-lg leading-8 text-gray-700">
-                We cook kebabs, burgers and grills fresh every day. You can
-                pick up, eat in, or order for a group.
+              <p className="mt-5 max-w-md text-base leading-8 text-[#5F5A51] sm:text-lg">
+                Visit us at 2/9–33 Errol Boulevard for dine-in, or order kebabs,
+                pide, burgers and grilled meals for pickup.
               </p>
+              <Link
+                href="/menu"
+                className="home-about-link mt-7 inline-flex items-center border-b border-[#8F482F] pb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#8F482F] transition-colors hover:border-[#29261F] hover:text-[#29261F]"
+              >
+                Browse the menu{" "}
+                <span className="home-arrow ml-3 text-base" aria-hidden="true">
+                  →
+                </span>
+              </Link>
             </div>
           </div>
         </section>

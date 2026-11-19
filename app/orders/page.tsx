@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import Loader from "@/components/Loader";
 import Skeleton from "@/components/Skeleton";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth-context";
 import { formatMelbourneDateTime } from "@/lib/date-time";
+import { useDialogFocus } from "@/components/useDialogFocus";
 
 interface OrderItem {
   id: string;
@@ -54,27 +55,10 @@ export default function OrdersPage() {
   const [activeFilter, setActiveFilter] = useState<string>("");
   const [searched, setSearched] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const orderTriggerRef = useRef<HTMLButtonElement | null>(null);
-  const closeDetailsRef = useRef<HTMLButtonElement | null>(null);
-
-  useEffect(() => {
-    if (!selectedOrder) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    closeDetailsRef.current?.focus();
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setSelectedOrder(null);
-    };
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", handleKeyDown);
-      orderTriggerRef.current?.focus();
-    };
-  }, [selectedOrder]);
+  const orderDialogRef = useDialogFocus<HTMLElement>(
+    Boolean(selectedOrder),
+    () => setSelectedOrder(null)
+  );
 
   // Fetch orders from Supabase dynamically
   const fetchOrders = useCallback(
@@ -458,13 +442,7 @@ export default function OrdersPage() {
               <button
                 type="button"
                 key={order.id}
-                ref={(element) => {
-                  if (selectedOrder?.id === order.id) {
-                    orderTriggerRef.current = element;
-                  }
-                }}
-                onClick={(event) => {
-                  orderTriggerRef.current = event.currentTarget;
+                onClick={() => {
                   setSelectedOrder(order);
                 }}
                 aria-haspopup="dialog"
@@ -509,9 +487,11 @@ export default function OrdersPage() {
               className="absolute inset-0 bg-stone-950/50 backdrop-blur-[1px]"
             />
             <section
+              ref={orderDialogRef}
               role="dialog"
               aria-modal="true"
               aria-labelledby="order-details-title"
+              tabIndex={-1}
               className="relative z-10 flex max-h-[90dvh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[#EBE6DD] bg-white text-[#1C1917] shadow-2xl"
             >
               <header className="flex min-h-16 items-center justify-between border-b border-[#EBE6DD] px-5 py-4">
@@ -527,7 +507,6 @@ export default function OrdersPage() {
                   </h2>
                 </div>
                 <button
-                  ref={closeDetailsRef}
                   type="button"
                   onClick={() => setSelectedOrder(null)}
                   aria-label="Close order details"

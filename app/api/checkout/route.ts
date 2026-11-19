@@ -9,6 +9,7 @@ import {
   validatePromoForCheckout,
   type CheckoutItemInput,
 } from "@/lib/promo-checkout";
+import { getCheckoutAvailability } from "@/lib/trading-hours";
 
 export async function POST(request: NextRequest) {
   if (!isStripeConfigured) {
@@ -200,6 +201,17 @@ export async function POST(request: NextRequest) {
         quantity: item.quantity,
       };
     });
+  }
+
+  const tradingAvailability = await getCheckoutAvailability();
+  if (!tradingAvailability.available) {
+    return NextResponse.json(
+      { error: tradingAvailability.message },
+      {
+        status:
+          tradingAvailability.reason === "unavailable" ? 503 : 409,
+      }
+    );
   }
 
   // ---------- Ask Stripe to create a checkout session ----------

@@ -43,9 +43,9 @@ function OrderSummary({
 
   return (
     <aside className="hidden min-[700px]:block">
-      <div className="sticky top-24 rounded-xl border border-[#E8DED2] bg-white p-4">
+      <div className="sticky top-24 border-t border-[#BFB6A8] bg-[#F3F0E8] p-4">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-sm font-extrabold text-[#29231F]">Your order</h2>
+          <h2 className="text-lg text-[#29231F]">Your order</h2>
           <span className="text-[11px] text-[#8B7D70]">
             {orderType ?? "Takeaway"}
           </span>
@@ -84,7 +84,7 @@ function OrderSummary({
         </div>
         <Link
           href={items.length > 0 ? "/checkout" : "/menu"}
-          className={`mt-3 flex min-h-10 w-full items-center justify-center rounded-lg px-3 text-xs font-bold text-white transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-orange-200 ${
+          className={`mt-3 flex min-h-10 w-full items-center justify-center px-3 text-xs font-bold text-white transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-orange-200 ${
             items.length > 0
               ? "bg-[#C9431D] hover:bg-[#A93417]"
               : "bg-stone-300"
@@ -101,6 +101,9 @@ function OrderSummary({
 
 export default function MenuList({ items }: { items: MenuItem[] }) {
   const [selectedItem, setSelectedItem] = useState<MenuItem | null>(null);
+  const [failedImages, setFailedImages] = useState<Set<string>>(
+    () => new Set()
+  );
   const categories = Array.from(new Set(items.map((item) => item.category))).filter(
     Boolean
   );
@@ -127,7 +130,7 @@ export default function MenuList({ items }: { items: MenuItem[] }) {
       <section aria-label="Menu">
         <div className="flex flex-col justify-between gap-4 py-5 sm:flex-row sm:items-center">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-[#29231F]">
+            <h1 className="text-4xl tracking-tight text-[#29231F] sm:text-5xl">
               Menu
             </h1>
             <p className="mt-1 text-xs text-[#786B5E]">
@@ -142,14 +145,14 @@ export default function MenuList({ items }: { items: MenuItem[] }) {
               value={searchTerm}
               onChange={(event) => setSearchTerm(event.target.value)}
               placeholder="Search the menu"
-              className="h-10 w-full rounded-lg border border-[#E2D6C9] bg-white pl-10 pr-3 text-xs text-[#29231F] outline-none transition placeholder:text-[#9A8B7D] focus:border-[#C2410C] focus:ring-2 focus:ring-orange-100"
+              className="h-10 w-full border border-[#D6CEC1] bg-[#FBFAF7] pl-10 pr-3 text-sm text-[#29231F] outline-none transition placeholder:text-[#9A8B7D] focus:border-[#8F482F] focus:ring-2 focus:ring-[#8F482F]/15"
             />
           </label>
         </div>
 
         <nav
           aria-label="Filter menu by category"
-          className="-mx-4 flex gap-5 overflow-x-auto border-b border-[#E8DED2] px-4 sm:mx-0 sm:gap-6 sm:px-0"
+          className="-mx-4 flex flex-wrap gap-x-5 border-b border-[#E8DED2] px-4 sm:mx-0 sm:gap-x-6 sm:px-0"
         >
           {categoryTabs.map((category) => {
             const isActive = activeCategory === category;
@@ -160,7 +163,7 @@ export default function MenuList({ items }: { items: MenuItem[] }) {
                 type="button"
                 aria-pressed={isActive}
                 onClick={() => setActiveCategory(category)}
-                className={`relative min-h-10 shrink-0 whitespace-nowrap text-[11px] font-semibold transition-colors ${
+                className={`relative min-h-10 shrink-0 whitespace-nowrap text-xs font-semibold transition-colors ${
                   isActive
                     ? "text-[#B93818]"
                     : "text-[#51473E] hover:text-[#B93818]"
@@ -168,7 +171,7 @@ export default function MenuList({ items }: { items: MenuItem[] }) {
               >
                 {category}
                 {isActive && (
-                  <span className="absolute inset-x-0 bottom-0 h-0.5 rounded-full bg-[#C9431D]" />
+                  <span className="absolute inset-x-0 bottom-0 h-px bg-[#8F482F]" />
                 )}
               </button>
             );
@@ -181,9 +184,6 @@ export default function MenuList({ items }: { items: MenuItem[] }) {
               <h2 className="text-sm font-extrabold text-[#29231F]">
                 {activeCategory === "All" ? "All items" : activeCategory}
               </h2>
-              <span className="text-[10px] text-[#786B5E]">
-                Freshly prepared
-              </span>
             </div>
 
             {filteredItems.length > 0 ? (
@@ -193,48 +193,52 @@ export default function MenuList({ items }: { items: MenuItem[] }) {
                     /falafel|veggie|vegetarian/i.test(
                       `${item.name} ${item.description}`
                     );
+                  const imageKey = item.imageUrl
+                    ? `${item.id}:${item.imageUrl}`
+                    : undefined;
 
                   return (
                     <article
                       key={item.id}
-                      className="group overflow-hidden rounded-xl border border-[#E8DED2] bg-white transition hover:-translate-y-0.5 hover:border-[#D9BBA7] hover:shadow-md"
+                      className="group overflow-hidden border border-[#DED7CA] bg-[#FCFBF8] transition hover:border-[#BFA18E] hover:shadow-md"
                     >
                       <div className="relative aspect-[1.55] overflow-hidden bg-[#EDE3D7]">
-                        <span className="absolute inset-0 flex items-center justify-center px-3 text-center font-mono text-[9px] tracking-wide text-[#9A8B7D]">
-                          photo — {item.name}
-                        </span>
-                        {item.imageUrl && (
+                        {item.imageUrl && imageKey && !failedImages.has(imageKey) && (
                           <img
                             src={item.imageUrl}
                             alt={item.name}
-                            className="absolute inset-0 h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
-                            onError={(event) => event.currentTarget.remove()}
+                            className="absolute inset-0 h-full w-full object-cover"
+                            onError={() =>
+                              setFailedImages(
+                                (current) => new Set(current).add(imageKey)
+                              )
+                            }
                           />
                         )}
                       </div>
-                      <div className="flex min-h-[104px] flex-col p-3">
+                      <div className="flex min-h-[148px] flex-col p-3">
                         {isVegetarian && (
-                          <span className="mb-1.5 w-fit rounded-full bg-[#E4F3E8] px-1.5 py-0.5 text-[8px] font-bold text-[#398052]">
+                          <span className="mb-1.5 w-fit rounded-full bg-[#E4F3E8] px-2 py-0.5 text-xs font-bold text-[#28613B]">
                             Vegetarian
                           </span>
                         )}
-                        <h3 className="text-[11px] font-bold leading-4 text-[#29231F]">
+                        <h3 className="text-base font-semibold leading-6 text-[#29231F]">
                           {item.name}
                         </h3>
                         {item.description && (
-                          <p className="mt-1 line-clamp-2 text-[9px] leading-[1.45] text-[#786B5E]">
+                          <p className="mt-1 line-clamp-3 text-sm leading-5 text-[#6F6A62]">
                             {item.description}
                           </p>
                         )}
                         <div className="mt-auto flex items-end justify-between pt-2">
-                          <span className="text-[11px] font-extrabold tabular-nums text-[#29231F]">
+                          <span className="text-base font-bold tabular-nums text-[#29231F]">
                             ${item.price.toFixed(2)}
                           </span>
                           <button
                             type="button"
                             onClick={() => setSelectedItem(item)}
                             aria-label={`Add ${item.name} to your order`}
-                            className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#C9431D] text-lg leading-none text-white transition hover:bg-[#A93417] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-orange-200"
+                            className="flex h-8 w-8 items-center justify-center bg-[#8F482F] text-lg leading-none text-white transition hover:bg-[#713C2B] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-orange-200"
                           >
                             +
                           </button>
@@ -245,7 +249,7 @@ export default function MenuList({ items }: { items: MenuItem[] }) {
                 })}
               </div>
             ) : (
-              <div className="rounded-xl border border-dashed border-[#DCCFC2] bg-white px-5 py-10 text-center">
+              <div className="border-y border-dashed border-[#CFC8BB] bg-[#FCFBF8] px-5 py-10 text-center">
                 <p className="text-sm font-semibold text-[#29231F]">
                   {items.length === 0
                     ? "Our menu is being prepared."
@@ -277,7 +281,7 @@ export default function MenuList({ items }: { items: MenuItem[] }) {
           <button
             type="button"
             onClick={() => setIsCartOpen(true)}
-            className="flex min-h-11 w-full items-center justify-between gap-4 rounded-lg bg-[#C9431D] px-4 text-left text-white transition hover:bg-[#A93417] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-orange-200"
+            className="flex min-h-11 w-full items-center justify-between gap-4 bg-[#8F482F] px-4 text-left text-white transition hover:bg-[#713C2B] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-orange-200"
           >
             <span className="text-xs font-bold">
               View order · {cartItemCount}{" "}

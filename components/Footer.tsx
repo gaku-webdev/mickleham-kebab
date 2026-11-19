@@ -69,18 +69,38 @@ export default function Footer() {
   }, []);
 
   return (
-    <footer className="bg-[#1C1917] px-4 py-10 text-[#E7E2DA] sm:px-8">
-      <div className="mx-auto flex max-w-6xl flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+    <footer className="border-t border-[#493A30] bg-[#25221D] px-5 py-10 text-[#E7E2DA] sm:px-8 sm:py-12">
+      <div className="mx-auto flex max-w-7xl flex-col gap-7 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-base font-extrabold text-white">
-            Mickleham Kebab &amp; Grill
+          <p className="text-sm">
+            2/9–33 Errol Boulevard, Mickleham VIC 3064
           </p>
-          <p className="mt-2 text-sm">2/9-33 Errol Bvd, Mickleham, VIC 3064</p>
           <a
             href="tel:0394539778"
-            className="mt-1 block text-sm text-[#F2B88A] hover:underline"
+            className="mt-1 block text-sm text-[#D5A78F] hover:underline"
           >
             (03) 9453 9778
+          </a>
+          <a
+            href="https://www.instagram.com/mickleham_kebab/"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Follow Mickleham Kebab & Grill on Instagram (opens in a new tab)"
+            className="mt-1 inline-flex items-center gap-2 text-sm text-[#D5A78F] hover:underline"
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              className="h-4 w-4"
+            >
+              <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
+              <circle cx="12" cy="12" r="4" />
+              <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+            </svg>
+            @mickleham_kebab
           </a>
           {hoursLoading ? (
             <div role="status" aria-label="Loading today's hours" aria-busy="true">
@@ -104,7 +124,7 @@ export default function Footer() {
               Privacy
             </Link>
           </div>
-          <p className="text-xs text-[#9C9188]">
+          <p className="text-xs tracking-wide text-[#B4A99D]">
             © {new Date().getFullYear()} Mickleham Kebab &amp; Grill
           </p>
         </div>

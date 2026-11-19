@@ -250,7 +250,7 @@ function OrderConfirmationContent() {
                 <div className="flex flex-col sm:items-end gap-1.5">
                   <div className="flex items-center gap-2">
                     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
                       Confirmed
                     </span>
                     <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -299,7 +299,8 @@ function OrderConfirmationContent() {
                     {isTakeaway && (
                       <div className="mt-3 pt-3 border-t border-[#FEEAD9] flex flex-wrap items-center justify-between gap-2 text-xs text-[#57534E]">
                         <div>
-                          <strong className="text-[#1C1917]">Pickup Location:</strong> 2/9-33 Errol Blvd, Mickleham VIC 3064
+                          <strong className="text-[#1C1917]">Pickup Location:</strong>{" "}
+                          2/9–33 Errol Boulevard, Mickleham VIC 3064
                         </div>
                         <a
                           href="tel:0394539778"

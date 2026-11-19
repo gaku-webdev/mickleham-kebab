@@ -468,7 +468,7 @@ export default function StaffPage() {
 
   if (authLoading || permissionLoading || loadingData) {
     return (
-      <main className="flex min-h-[70vh] items-center justify-center bg-[#FAF7F2] px-4">
+      <main className="editorial-dashboard flex min-h-[70vh] items-center justify-center bg-[#FAF7F2] px-4">
         <Loader label="Loading staff service board..." />
       </main>
     );
@@ -476,7 +476,7 @@ export default function StaffPage() {
 
   if (!user || !authorized) {
     return (
-      <main className="flex min-h-[70vh] items-center justify-center bg-[#FAF7F2] px-4 py-10 text-[#29231F]">
+      <main className="editorial-dashboard flex min-h-[70vh] items-center justify-center bg-[#FAF7F2] px-4 py-10 text-[#29231F]">
         <section className="w-full max-w-md rounded-3xl border border-[#EBE6DD] bg-white p-8 text-center shadow-sm">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-orange-50 text-2xl">
             🔒
@@ -514,11 +514,11 @@ export default function StaffPage() {
           : "All dates";
 
   return (
-    <main className="min-h-screen bg-[#F7F4EE] px-4 pb-12 pt-6 text-[#29231F] sm:px-6 sm:pt-8 lg:px-8">
+    <main className="editorial-dashboard min-h-screen bg-[#F7F4EE] px-4 pb-12 pt-6 text-[#29231F] sm:px-6 sm:pt-8 lg:px-8">
       <div className="mx-auto max-w-7xl">
         <header className="mb-6 flex flex-col gap-5 rounded-3xl bg-[#29231F] p-5 text-white shadow-sm sm:flex-row sm:items-end sm:justify-between sm:p-7">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-orange-300">
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-[#D5A78F]">
               Mickleham Kebab &amp; Grill
             </p>
             <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">Service board</h1>
@@ -529,13 +529,13 @@ export default function StaffPage() {
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3">
+            <div className="border-l border-white/25 pl-4">
               <p className="text-[11px] font-bold uppercase tracking-wider text-stone-300">
                 Active orders
               </p>
               <p className="mt-1 text-2xl font-extrabold tabular-nums">{activeOrders.length}</p>
             </div>
-            <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3">
+            <div className="border-l border-white/25 pl-4">
               <p className="text-[11px] font-bold uppercase tracking-wider text-stone-300">
                 Upcoming bookings
               </p>
@@ -728,7 +728,10 @@ export default function StaffPage() {
         {tab === "orders" ? (
           visibleOrders.length ? (
             <>
-            <section aria-label="Orders" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <section
+              aria-label="Orders"
+              className="divide-y border-y border-[#DED7CA]"
+            >
               {paginatedOrders.map((order) => {
                 const isUpdating = updatingId === order.id;
                 const status = order.status || "preparing";
@@ -739,7 +742,7 @@ export default function StaffPage() {
                 return (
                   <article
                     key={order.id}
-                    className="flex min-h-[24rem] flex-col rounded-3xl border border-[#E8DED2] bg-white p-5 shadow-sm sm:p-6"
+                    className="grid gap-4 py-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1.2fr)_auto] xl:items-start"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -752,7 +755,7 @@ export default function StaffPage() {
                       </div>
                       <StatusBadge status={status} />
                     </div>
-                    <div className="mt-4 rounded-2xl bg-[#FAF7F2] p-4">
+                    <div className="xl:border-l xl:border-[#DED7CA] xl:pl-4">
                       <p className="text-sm font-bold">{order.customer_name || "Guest"}</p>
                       <p className="mt-1 text-xs text-stone-600">
                         {order.created_at ? formatMelbourneDateTime(order.created_at) : "Time unavailable"}
@@ -766,7 +769,7 @@ export default function StaffPage() {
                           : `Pickup ${order.pickup_time || "as soon as possible"}`}
                       </p>
                     </div>
-                    <div className="mt-4 flex-1">
+                    <div className="mt-4 flex-1 xl:mt-0">
                       <p className="text-xs font-bold uppercase tracking-wider text-stone-500">
                         Items
                       </p>
@@ -792,12 +795,12 @@ export default function StaffPage() {
                         <p className="mt-2 text-sm text-stone-500">Order details unavailable.</p>
                       )}
                       {order.notes && (
-                        <p className="mt-3 rounded-xl border border-orange-100 bg-orange-50/70 p-3 text-sm text-stone-700">
+                        <p className="mt-3 border-l border-[#BFA18E] pl-3 text-sm text-stone-700">
                           {order.notes}
                         </p>
                       )}
                     </div>
-                    <div className="mt-5 flex items-center justify-between gap-3 border-t border-[#EEE8E0] pt-4">
+                    <div className="mt-5 flex items-center justify-between gap-3 border-t border-[#EEE8E0] pt-4 xl:mt-0 xl:min-w-36 xl:flex-col xl:items-start xl:border-l xl:border-t-0 xl:pl-4 xl:pt-0">
                       <p className="text-lg font-extrabold tabular-nums">
                         ${Number(order.total_amount || 0).toFixed(2)}
                       </p>
@@ -836,13 +839,16 @@ export default function StaffPage() {
           )
         ) : visibleReservations.length ? (
           <>
-          <section aria-label="Reservations" className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <section
+            aria-label="Reservations"
+            className="divide-y border-y border-[#DED7CA]"
+          >
             {paginatedReservations.map((reservation) => {
               const isUpdating = updatingId === reservation.id;
               return (
                 <article
                   key={reservation.id}
-                  className="flex min-h-[21rem] flex-col rounded-3xl border border-[#E8DED2] bg-white p-5 shadow-sm sm:p-6"
+                  className="grid gap-4 py-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.2fr)_auto] xl:items-start"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -853,7 +859,7 @@ export default function StaffPage() {
                     </div>
                     <StatusBadge status={reservation.status} />
                   </div>
-                  <div className="mt-4 rounded-2xl bg-[#FAF7F2] p-4">
+                  <div className="xl:border-l xl:border-[#DED7CA] xl:pl-4">
                     <p className="text-lg font-extrabold text-[#C2410C]">
                       {formatDateOnly(reservation.reservation_date, {
                         weekday: "short",
@@ -866,7 +872,7 @@ export default function StaffPage() {
                     <p className="mt-2 text-sm text-stone-700">{reservation.customer_phone}</p>
                     <p className="mt-1 break-all text-xs text-stone-500">{reservation.customer_email}</p>
                   </div>
-                  <div className="mt-4 flex-1">
+                  <div className="mt-4 flex-1 xl:mt-0">
                     <p className="text-xs font-bold uppercase tracking-wider text-stone-500">
                       Special requests
                     </p>
@@ -875,7 +881,7 @@ export default function StaffPage() {
                     </p>
                   </div>
                   {activeReservation(reservation) && (
-                    <div className="mt-5 flex flex-wrap gap-2 border-t border-[#EEE8E0] pt-4">
+                    <div className="mt-5 flex flex-wrap gap-2 border-t border-[#EEE8E0] pt-4 xl:mt-0 xl:flex-col xl:items-stretch xl:border-l xl:border-t-0 xl:pl-4 xl:pt-0">
                       {reservation.status.toLowerCase() === "pending" && (
                         <button
                           type="button"

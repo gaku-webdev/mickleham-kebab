@@ -4,8 +4,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { stripe, isStripeConfigured } from "@/lib/stripe";
-import { supabase } from "@/lib/supabase";
 import {
+  getPricedCheckoutItems,
   validatePromoForCheckout,
   type CheckoutItemInput,
 } from "@/lib/promo-checkout";
@@ -56,7 +56,16 @@ export async function POST(request: NextRequest) {
         item.quantity > 99 ||
         typeof item.displayName !== "string" ||
         !item.displayName.trim() ||
-        item.displayName.length > 200
+        item.displayName.length > 200 ||
+        (item.selectedOptionIds !== undefined &&
+          (!Array.isArray(item.selectedOptionIds) ||
+            item.selectedOptionIds.length > 100 ||
+            item.selectedOptionIds.some(
+              (option) =>
+                typeof option !== "string" ||
+                !option.trim() ||
+                option.length > 100
+            )))
     )
   ) {
     return NextResponse.json(
@@ -122,7 +131,6 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const menuItemIds = items.map((item) => item.menuItemId);
   let lineItems: {
     price_data: {
       currency: "aud";
@@ -132,6 +140,7 @@ export async function POST(request: NextRequest) {
     quantity: number;
   }[];
   let promoMetadata: Record<string, string> = {};
+  let stripeDiscountAmountCents = 0;
   let subtotalBeforeDiscountCents = 0;
 
   const promoCode =
@@ -149,7 +158,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    lineItems = validatedPromo.discountedItems.map((item) => ({
+    subtotalBeforeDiscountCents = validatedPromo.cartItems.reduce(
+      (subtotal, item) =>
+        subtotal + item.unitAmountCents * item.quantity,
+      0
+    );
+    stripeDiscountAmountCents = validatedPromo.discountCents;
+    lineItems = validatedPromo.cartItems.map((item) => ({
       price_data: {
         currency: "aud",
         product_data: {
@@ -159,50 +174,28 @@ export async function POST(request: NextRequest) {
       },
       quantity: item.quantity,
     }));
-    subtotalBeforeDiscountCents = validatedPromo.cartItems.reduce(
-      (subtotal, item) =>
-        subtotal + item.unitAmountCents * item.quantity,
-      0
-    );
     promoMetadata = {
       promoId: validatedPromo.promo.id,
       promoCode: validatedPromo.promo.code,
       promoDiscountCents: String(validatedPromo.discountCents),
     };
   } else {
-    const { data: menuItems, error } = await supabase
-      .from("menu_items")
-      .select("id, base_price")
-      .in("id", menuItemIds);
-
-    if (error || !menuItems) {
+    const { items: pricedItems, error: pricingError } =
+      await getPricedCheckoutItems(items);
+    if (pricingError || !pricedItems) {
       return NextResponse.json(
-        { error: "Could not verify menu prices" },
-        { status: 500 }
-      );
-    }
-
-    const knownItems = items.flatMap((item) => {
-      const menuItem = menuItems.find(
-        (candidate) => candidate.id === item.menuItemId
-      );
-      return menuItem ? [{ item, menuItem }] : [];
-    });
-    if (knownItems.length !== items.length) {
-      return NextResponse.json(
-        { error: "A menu item in your cart is no longer available." },
+        { error: pricingError ?? "Could not verify menu prices." },
         { status: 400 }
       );
     }
 
-    lineItems = knownItems.map(({ item, menuItem }) => {
-      const unitAmountCents = Math.round(Number(menuItem.base_price) * 100);
-      subtotalBeforeDiscountCents += unitAmountCents * item.quantity;
+    lineItems = pricedItems.map((item) => {
+      subtotalBeforeDiscountCents += item.unitAmountCents * item.quantity;
       return {
         price_data: {
           currency: "aud" as const,
           product_data: { name: item.displayName },
-          unit_amount: unitAmountCents,
+          unit_amount: item.unitAmountCents,
         },
         quantity: item.quantity,
       };
@@ -218,9 +211,24 @@ export async function POST(request: NextRequest) {
     "http://localhost:3000";
 
   try {
+    const discounts =
+      stripeDiscountAmountCents > 0
+        ? [
+            {
+              coupon: (
+                await stripe.coupons.create({
+                  amount_off: stripeDiscountAmountCents,
+                  currency: "aud",
+                  duration: "once",
+                })
+              ).id,
+            },
+          ]
+        : undefined;
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items: lineItems,
+      discounts,
       customer_email: customerEmail,
       phone_number_collection: { enabled: true },
       success_url: `${origin}/order-confirmation?session_id={CHECKOUT_SESSION_ID}`,

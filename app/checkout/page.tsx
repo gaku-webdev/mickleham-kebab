@@ -27,6 +27,7 @@ type CheckoutCartItem = {
   menuItemId: string;
   quantity: number;
   name: string;
+  selectedOptionIds?: string[];
 };
 
 async function validatePromo(
@@ -44,6 +45,7 @@ async function validatePromo(
           menuItemId: item.menuItemId,
           quantity: item.quantity,
           displayName: item.name,
+          selectedOptionIds: item.selectedOptionIds,
         })),
       }),
     });
@@ -113,14 +115,23 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const cartKey = JSON.stringify(
-    items.map((item) => [item.id, item.menuItemId, item.name, item.quantity])
+    items.map((item) => [
+      item.id,
+      item.menuItemId,
+      item.name,
+      item.quantity,
+      item.selectedOptionIds,
+    ])
   );
   const quoteIsCurrent =
     Boolean(promoCode.trim()) &&
     promoQuote?.code === promoCode &&
     promoQuote?.cartKey === cartKey;
-  const discountCents = quoteIsCurrent ? promoQuote.discountCents : 0;
-  const finalTotal = Math.max(0, total - discountCents / 100);
+  const discountCents =
+    quoteIsCurrent && promoQuote ? promoQuote.discountCents : 0;
+  const finalTotal = quoteIsCurrent && promoQuote
+    ? promoQuote.totalCents / 100
+    : total - discountCents / 100;
 
   useEffect(() => {
     let active = true;
@@ -207,6 +218,7 @@ export default function CheckoutPage() {
             menuItemId: item.menuItemId,
             quantity: item.quantity,
             displayName: item.name,
+            selectedOptionIds: item.selectedOptionIds,
           })),
           orderType,
           promoCode: quoteIsCurrent ? promoQuote.code : null,
@@ -531,7 +543,14 @@ export default function CheckoutPage() {
             >
               <div className="flex justify-between text-[#74685E]">
                 <span>Subtotal</span>
-                <span>${total.toFixed(2)}</span>
+                <span>
+                  $
+                  {(
+                    quoteIsCurrent && promoQuote
+                      ? promoQuote.subtotalCents / 100
+                      : total
+                  ).toFixed(2)}
+                </span>
               </div>
               {(quoteIsCurrent && promoQuote) || isApplyingPromo ? (
                 <div className="flex justify-between text-green-700">

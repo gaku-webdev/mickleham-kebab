@@ -11,6 +11,7 @@ type CartItem = {
   name: string;
   price: number;
   quantity: number;
+  selectedOptionIds?: string[];
 };
 
 // Order type can only be one of these two values.

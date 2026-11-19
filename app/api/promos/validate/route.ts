@@ -38,7 +38,16 @@ export async function POST(request: NextRequest) {
         !Number.isInteger(item.quantity) ||
         item.quantity < 1 ||
         item.quantity > 99 ||
-        typeof item.displayName !== "string"
+        typeof item.displayName !== "string" ||
+        (item.selectedOptionIds !== undefined &&
+          (!Array.isArray(item.selectedOptionIds) ||
+            item.selectedOptionIds.length > 100 ||
+            item.selectedOptionIds.some(
+              (option) =>
+                typeof option !== "string" ||
+                !option.trim() ||
+                option.length > 100
+            )))
     )
   ) {
     return NextResponse.json(

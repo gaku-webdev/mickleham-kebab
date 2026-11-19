@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
-import ItemCustomizeModal from "./ItemCustomizeModal";
+import ItemCustomizeModal, { type MenuOptionGroup } from "./ItemCustomizeModal";
 
 type MenuItem = {
   id: string;
@@ -12,22 +12,8 @@ type MenuItem = {
   price: number;
   category: string;
   imageUrl?: string;
+  customizationGroups: MenuOptionGroup[];
 };
-
-const categoryGroups = [
-  { label: "Meal Deals", matches: /meal deal|combo|kids meal/i },
-  { label: "Kebabs", matches: /kebab/i },
-  { label: "Burgers", matches: /burger/i },
-  { label: "Grill Meals & Rice", matches: /grill|rice|biryani/i },
-  { label: "Pide & HSP", matches: /pide|hsp/i },
-  { label: "Drinks and Dips", matches: /drink|beverage/i },
-  { label: "Sides & Wings", matches: /side|wing|extra|bread|salad|container/i },
-  { label: "Desserts & Shakes", matches: /dessert|shake/i },
-];
-
-function getCategoryGroup(category: string) {
-  return categoryGroups.find((group) => group.matches.test(category))?.label;
-}
 
 function SearchIcon() {
   return (
@@ -118,16 +104,8 @@ export default function MenuList({ items }: { items: MenuItem[] }) {
   const categories = Array.from(new Set(items.map((item) => item.category))).filter(
     Boolean
   );
-  const categoryTabs = [
-    ...categoryGroups
-      .filter((group) => categories.some((category) => group.matches.test(category)))
-      .map((group) => group.label),
-    ...categories.filter((category) => !getCategoryGroup(category)),
-  ];
-  const initialCategory = categoryTabs.includes("Kebabs")
-    ? "Kebabs"
-    : categoryTabs[0] ?? "All";
-  const [activeCategory, setActiveCategory] = useState(initialCategory);
+  const categoryTabs = ["All", ...categories];
+  const [activeCategory, setActiveCategory] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
   const { items: cartItems, total, setIsCartOpen } = useCart();
   const cartItemCount = cartItems.reduce(
@@ -136,10 +114,7 @@ export default function MenuList({ items }: { items: MenuItem[] }) {
   );
   const normalizedSearch = searchTerm.trim().toLowerCase();
   const filteredItems = items.filter((item) => {
-    const matchesCategory =
-      activeCategory === "All" ||
-      getCategoryGroup(item.category) === activeCategory ||
-      item.category === activeCategory;
+    const matchesCategory = activeCategory === "All" || item.category === activeCategory;
     const matchesSearch =
       !normalizedSearch ||
       `${item.name} ${item.description}`.toLowerCase().includes(normalizedSearch);
@@ -291,6 +266,7 @@ export default function MenuList({ items }: { items: MenuItem[] }) {
 
       {selectedItem && (
         <ItemCustomizeModal
+          key={selectedItem.id}
           item={selectedItem}
           onClose={() => setSelectedItem(null)}
         />

@@ -1,107 +1,114 @@
 "use client";
-// This runs in the browser, because it reacts to clicks and remembers choices.
 
 import { useState } from "react";
 import { useCart } from "@/context/CartContext";
 
-// This describes one menu item passed into the modal.
+export type MenuOptionGroup = {
+  id: string;
+  name: string;
+  selectionType: string;
+  minSelections: number;
+  maxSelections: number | null;
+  isRequired: boolean;
+  choices: {
+    id: string;
+    name: string;
+    priceAdjustment: number;
+  }[];
+};
+
 type MenuItem = {
   id: string;
   name: string;
   price: number;
   category: string;
-  // We added category. Without it, we can't tell a drink from a kebab,
-  // so every item would show the same options (size, cheese, sauce).
+  customizationGroups: MenuOptionGroup[];
 };
 
-// This describes what this component needs from its parent page.
 type Props = {
   item: MenuItem;
   onClose: () => void;
 };
 
+function getMinimum(group: MenuOptionGroup) {
+  return Math.max(group.minSelections, group.isRequired ? 1 : 0);
+}
+
+function getMaximum(group: MenuOptionGroup) {
+  const configuredMaximum =
+    group.maxSelections ?? Number.POSITIVE_INFINITY;
+  return group.selectionType === "single"
+    ? Math.min(configuredMaximum, 1)
+    : configuredMaximum;
+}
+
+function formatAdjustment(amount: number) {
+  if (amount === 0) return "Included";
+  return `${amount > 0 ? "+" : "−"}$${Math.abs(amount).toFixed(2)}`;
+}
+
 export default function ItemCustomizeModal({ item, onClose }: Props) {
-  // Get the addItem function from the cart.
   const { addItem } = useCart();
-
-  // ---------- Decide which options this item should show ----------
-  // We work this out ONCE here, instead of repeating the same check
-  // in many places later. This is the same "don't repeat yourself" idea
-  // we used before.
-
-  // Food that comes in a size (Regular/Large) and sides.
-  const showSize = ["Kebabs", "Burgers", "Grills", "Sides"].includes(item.category);
-  // .includes(...) checks: "is item.category one of these words?"
-  // true or false.
-
-  // Only kebabs/burgers/grills can have extra cheese.
-  const showCheese = ["Kebabs", "Burgers", "Grills"].includes(item.category);
-
-  // Only kebabs/burgers/grills come with a sauce choice.
-  const showSauce = ["Kebabs", "Burgers", "Grills"].includes(item.category);
-
-  // A drink or dessert will end up with showSize = false,
-  // showCheese = false, showSauce = false - so none of those
-  // sections will render. Only quantity will show.
-
-  // ---------- Remember the user's choices ---------
-  // These still exist for every item, but they are only USED
-  // (and only shown on screen) when the matching "show..." flag is true.
-  const [size, setSize] = useState("Regular");
-  const [extraCheese, setExtraCheese] = useState(false);
-  const [sauce, setSauce] = useState("Garlic");
+  const [selectedByGroup, setSelectedByGroup] = useState<
+    Record<string, string[]>
+  >({});
   const [quantity, setQuantity] = useState(1);
 
-  // ---------- Work out the price ----------
-  function calculatePrice() {
-    let price = item.price;
+  const selectedChoices = item.customizationGroups.flatMap((group) =>
+    group.choices.filter((choice) =>
+      (selectedByGroup[group.id] ?? []).includes(choice.id)
+    )
+  );
+  const selectedOptionIds = selectedChoices.map((choice) => choice.id);
+  const unitPrice =
+    item.price +
+    selectedChoices.reduce((total, choice) => total + choice.priceAdjustment, 0);
+  const validSelection = item.customizationGroups.every((group) => {
+    const count = selectedByGroup[group.id]?.length ?? 0;
+    return count >= getMinimum(group) && count <= getMaximum(group);
+  });
+  const canAdd =
+    validSelection && Number.isFinite(unitPrice) && unitPrice >= 0;
 
-    // Only add the "Large" price if this category actually HAS sizes.
-    // Without the showSize check, a drink could somehow still get
-    // +$2 added, even though it never showed a size button.
-    if (showSize && size === "Large") price += 2;
+  function setChoiceSelected(
+    group: MenuOptionGroup,
+    choiceId: string,
+    isSelected: boolean
+  ) {
+    setSelectedByGroup((current) => {
+      const currentChoices = current[group.id] ?? [];
+      let nextChoices: string[];
 
-    if (showCheese && extraCheese) price += 1;
+      if (group.selectionType === "single") {
+        nextChoices = isSelected ? [choiceId] : [];
+      } else if (isSelected) {
+        nextChoices = currentChoices.includes(choiceId)
+          ? currentChoices
+          : [...currentChoices, choiceId];
+      } else {
+        nextChoices = currentChoices.filter((id) => id !== choiceId);
+      }
 
-    return price;
+      return { ...current, [group.id]: nextChoices };
+    });
   }
 
-  // -------- Add the item to the cart ----------
   function handleAddToCart() {
-    // Build the cart id piece by piece.
-    // We start with just the item id...
-    const parts = [item.id];
+    if (!canAdd) return;
 
-    // ...and only add size/cheese/sauce to the id if this item HAS them.
-    // This stops a drink's id from looking like "drink-1-Regular-false-Garlic"
-    // when it never had those choices in the first place.
-    if (showSize) parts.push(size);
-    if (showCheese) parts.push(String(extraCheese));
-    // String(extraCheese) turns true/false into the text "true"/"false",
-    // so it can be joined into the id string below.
-    if (showSauce) parts.push(sauce);
-
-    // Join all the parts together with "-" to make one id string.
-    // Example for a kebab: "kebab-1-Large-true-Garlic"
-    // Example for a drink: "drink-1" (nothing extra added)
-    const cartItemId = parts.join("-");
-
-    // ---------- Build the name shown in the cart ---------
-    // Collect only the details that actually apply to this item.
-    const details = [];
-    if (showSize) details.push(size);
-    if (showCheese && extraCheese) details.push("extra cheese");
-
-    // If there are any details, wrap them in brackets like "(Large, extra cheese)".
-    // If there are none (like for a drink), show nothing extra at all.
-    const detailText = details.length > 0 ? ` (${details.join(", ")})` : "";
+    const details =
+      selectedChoices.length > 0
+        ? ` (${selectedChoices.map((choice) => choice.name).join(", ")})`
+        : "";
+    const cartItemId = [item.id, ...[...selectedOptionIds].sort()].join("-");
 
     addItem({
       id: cartItemId,
       menuItemId: item.id,
-      name: `${item.name}${detailText}`,
-      price: calculatePrice(),
-      quantity: quantity,
+      name: `${item.name}${details}`,
+      price: unitPrice,
+      quantity,
+      selectedOptionIds,
     });
 
     onClose();
@@ -116,7 +123,6 @@ export default function ItemCustomizeModal({ item, onClose }: Props) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="customize-item-title"
-        aria-describedby="customize-item-description"
         className="flex max-h-[92dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl sm:rounded-3xl"
         onClick={(event) => event.stopPropagation()}
       >
@@ -133,11 +139,8 @@ export default function ItemCustomizeModal({ item, onClose }: Props) {
               >
                 {item.name}
               </h2>
-              <p
-                id="customize-item-description"
-                className="mt-1 text-sm text-stone-500"
-              >
-                Make it just the way you like.
+              <p className="mt-1 text-sm text-stone-500">
+                Choose from the available options.
               </p>
             </div>
             <button
@@ -150,86 +153,87 @@ export default function ItemCustomizeModal({ item, onClose }: Props) {
             </button>
           </div>
           <p className="mt-4 text-lg font-bold tabular-nums text-stone-900">
-            ${item.price.toFixed(2)}
-            <span className="ml-1 text-sm font-normal text-stone-500">each</span>
+            ${unitPrice.toFixed(2)}
+            <span className="ml-1 text-sm font-normal text-stone-500">
+              each
+            </span>
           </p>
         </div>
 
         <div className="overflow-y-auto px-5 py-5 sm:px-7">
-          {showSize && (
-            <fieldset className="mb-6">
-              <legend className="mb-3 text-sm font-bold text-stone-900">
-                Choose your size
-              </legend>
-              <div className="grid grid-cols-2 gap-3">
-                {["Regular", "Large"].map((option) => {
-                  const isSelected = size === option;
+          {item.customizationGroups.map((group) => {
+            const selectedIds = selectedByGroup[group.id] ?? [];
+            const minimum = getMinimum(group);
+            const maximum = getMaximum(group);
 
-                  return (
-                    <button
-                      key={option}
-                      type="button"
-                      aria-pressed={isSelected}
-                      onClick={() => setSize(option)}
-                      className={`flex min-h-14 items-center justify-between rounded-xl border px-4 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-orange-200 ${
-                        isSelected
-                          ? "border-orange-600 bg-orange-50 text-orange-800 ring-1 ring-orange-600"
-                          : "border-stone-200 text-stone-700 hover:border-orange-300"
-                      }`}
-                    >
-                      {option}
-                      <span className="text-xs font-medium text-stone-500">
-                        {option === "Large" ? "+$2.00" : "Included"}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </fieldset>
-          )}
-
-          {showSauce && (
-            <div className="mb-6">
-              <label
-                htmlFor="item-sauce"
-                className="mb-3 block text-sm font-bold text-stone-900"
+            return (
+              <fieldset
+                key={group.id}
+                className="mb-6 last:mb-0"
+                disabled={group.choices.length === 0}
               >
-                Choose your sauce
-              </label>
-              <select
-                id="item-sauce"
-                value={sauce}
-                onChange={(event) => setSauce(event.target.value)}
-                className="h-12 w-full rounded-xl border border-stone-200 bg-white px-4 text-sm text-stone-800 outline-none transition focus:border-orange-500 focus:ring-4 focus:ring-orange-100"
-              >
-                <option>Garlic</option>
-                <option>Chilli</option>
-                <option>BBQ</option>
-              </select>
-            </div>
-          )}
+                <legend className="text-sm font-bold text-stone-900">
+                  {group.name}
+                </legend>
+                <p className="mb-3 mt-1 text-xs text-stone-500">
+                  {group.isRequired ? "Required" : "Optional"}
+                  {minimum > 0 ? ` · Select at least ${minimum}` : ""}
+                  {Number.isFinite(maximum) ? ` · Up to ${maximum}` : ""}
+                </p>
+                {group.choices.length > 0 ? (
+                  <div className="space-y-2">
+                    {group.choices.map((choice) => {
+                      const isSelected = selectedIds.includes(choice.id);
+                      const limitReached =
+                        selectedIds.length >= maximum && !isSelected;
 
-          {showCheese && (
-            <label className="mb-6 flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-stone-200 p-4 transition hover:border-orange-300">
-              <span>
-                <span className="block text-sm font-semibold text-stone-900">
-                  Add extra cheese
-                </span>
-                <span className="mt-1 block text-xs text-stone-500">
-                  Make it extra cheesy
-                </span>
-              </span>
-              <span className="flex shrink-0 items-center gap-3">
-                <span className="text-sm font-semibold text-stone-700">+$1.00</span>
-                <input
-                  type="checkbox"
-                  checked={extraCheese}
-                  onChange={(event) => setExtraCheese(event.target.checked)}
-                  className="h-5 w-5 accent-orange-600"
-                />
-              </span>
-            </label>
-          )}
+                      return (
+                        <label
+                          key={choice.id}
+                          className={`flex min-h-12 cursor-pointer items-center justify-between gap-4 rounded-xl border px-4 py-3 transition ${
+                            isSelected
+                              ? "border-orange-600 bg-orange-50"
+                              : "border-stone-200 hover:border-orange-300"
+                          } ${limitReached ? "cursor-not-allowed opacity-50" : ""}`}
+                        >
+                          <span className="text-sm font-medium text-stone-800">
+                            {choice.name}
+                          </span>
+                          <span className="flex shrink-0 items-center gap-3">
+                            <span className="text-xs font-semibold text-stone-600">
+                              {formatAdjustment(choice.priceAdjustment)}
+                            </span>
+                            <input
+                              type={
+                                group.selectionType === "single"
+                                  ? "radio"
+                                  : "checkbox"
+                              }
+                              name={`option-group-${group.id}`}
+                              checked={isSelected}
+                              disabled={limitReached}
+                              onChange={(event) =>
+                                setChoiceSelected(
+                                  group,
+                                  choice.id,
+                                  event.target.checked
+                                )
+                              }
+                              className="h-4 w-4 accent-orange-600"
+                            />
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
+                    No options are currently available.
+                  </p>
+                )}
+              </fieldset>
+            );
+          })}
 
           <div className="flex items-center justify-between border-t border-stone-100 pt-5">
             <div>
@@ -266,11 +270,12 @@ export default function ItemCustomizeModal({ item, onClose }: Props) {
           <button
             type="button"
             onClick={handleAddToCart}
-            className="flex min-h-14 w-full items-center justify-between rounded-xl bg-orange-700 px-5 text-base font-bold text-white shadow-lg shadow-orange-700/20 transition hover:bg-orange-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-orange-300"
+            disabled={!canAdd}
+            className="flex min-h-14 w-full items-center justify-between rounded-xl bg-orange-700 px-5 text-base font-bold text-white shadow-lg shadow-orange-700/20 transition hover:bg-orange-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-orange-300 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <span>Add to cart</span>
             <span className="tabular-nums">
-              ${(calculatePrice() * quantity).toFixed(2)}
+              ${(unitPrice * quantity).toFixed(2)}
             </span>
           </button>
           <button

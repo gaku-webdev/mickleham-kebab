@@ -11,8 +11,10 @@ type Props = {
 
 type PromoQuote = {
   code: string;
+  subtotalCents: number;
   eligibleSubtotalCents: number;
   discountCents: number;
+  totalCents: number;
   cartKey: string;
 };
 
@@ -31,6 +33,7 @@ async function validatePromo(
           menuItemId: item.menuItemId,
           quantity: item.quantity,
           displayName: item.name,
+          selectedOptionIds: item.selectedOptionIds,
         })),
       }),
     });
@@ -46,8 +49,10 @@ async function validatePromo(
     return {
       quote: {
         code: data.code,
+        subtotalCents: data.subtotalCents,
         eligibleSubtotalCents: data.eligibleSubtotalCents,
         discountCents: data.discountCents,
+        totalCents: data.totalCents,
         cartKey,
       },
       error: "",
@@ -82,14 +87,19 @@ export default function CartDrawer({ isOpen, onClose }: Props) {
   const itemCount = items.reduce((count, item) => count + item.quantity, 0);
 
   const cartKey = JSON.stringify(
-    items.map((item) => [item.id, item.menuItemId, item.name, item.quantity])
+    items.map((item) => [
+      item.id,
+      item.menuItemId,
+      item.name,
+      item.quantity,
+      item.selectedOptionIds,
+    ])
   );
   const quoteIsCurrent =
     promoQuote?.code === promoCode && promoQuote?.cartKey === cartKey;
-  const discountedTotal = Math.max(
-    0,
-    total - (quoteIsCurrent ? promoQuote.discountCents / 100 : 0)
-  );
+  const discountedTotal = quoteIsCurrent && promoQuote
+    ? promoQuote.totalCents / 100
+    : total;
 
   useEffect(() => {
     if (
